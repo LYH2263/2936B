@@ -34,14 +34,39 @@ public class SubmissionService {
     }
 
     @Transactional
-    public Submission submitExam(Long examId, Map<Long, String> answers, String username) {
+    public Submission startExam(Long examId, String username) {
         User student = userRepository.findByUsername(username).orElseThrow();
         Exam exam = examRepository.findById(examId).orElseThrow();
+        
+        List<Submission> existing = submissionRepository.findByExamIdAndStudentIdAndState(examId, student.getId(), "IN_PROGRESS");
+        if (!existing.isEmpty()) {
+            return existing.get(0);
+        }
         
         Submission submission = new Submission();
         submission.setExam(exam);
         submission.setStudent(student);
-        submission.setStartTime(LocalDateTime.now().minusMinutes(30)); // Mock start time
+        submission.setStartTime(LocalDateTime.now());
+        submission.setState("IN_PROGRESS");
+        
+        return submissionRepository.save(submission);
+    }
+
+    @Transactional
+    public Submission submitExam(Long examId, Map<Long, String> answers, String username) {
+        User student = userRepository.findByUsername(username).orElseThrow();
+        Exam exam = examRepository.findById(examId).orElseThrow();
+        
+        List<Submission> existing = submissionRepository.findByExamIdAndStudentIdAndState(examId, student.getId(), "IN_PROGRESS");
+        Submission submission;
+        if (!existing.isEmpty()) {
+            submission = existing.get(0);
+        } else {
+            submission = new Submission();
+            submission.setExam(exam);
+            submission.setStudent(student);
+            submission.setStartTime(LocalDateTime.now().minusMinutes(30));
+        }
         submission.setEndTime(LocalDateTime.now());
         submission.setState("SUBMITTED");
         

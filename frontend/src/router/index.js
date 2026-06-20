@@ -17,6 +17,7 @@ import PkLobbyView from '@/views/PkLobbyView.vue'
 import PkBattleView from '@/views/PkBattleView.vue'
 import PkRankingView from '@/views/PkRankingView.vue'
 import GradingWorkbenchView from '@/views/GradingWorkbenchView.vue'
+import ReplayView from '@/views/ReplayView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -125,6 +126,12 @@ const router = createRouter({
             name: 'grading-workbench',
             component: GradingWorkbenchView,
             meta: { requiresAuth: true, requiresTeacher: true }
+        },
+        {
+            path: '/replay/:submissionId',
+            name: 'replay',
+            component: ReplayView,
+            meta: { requiresAuth: true }
         }
     ]
 })

@@ -18,6 +18,11 @@ public class SubmissionController {
         this.submissionService = submissionService;
     }
 
+    @PostMapping("/{examId}/start")
+    public Submission startExam(@PathVariable Long examId, Principal principal) {
+        return submissionService.startExam(examId, principal.getName());
+    }
+
     @PostMapping("/{examId}")
     public Submission submitExam(@PathVariable Long examId, @RequestBody Map<Long, String> answers, Principal principal) {
         return submissionService.submitExam(examId, answers, principal.getName());

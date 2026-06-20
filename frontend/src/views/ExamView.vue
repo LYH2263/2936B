@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   getExam, getExamQuestions, submitExam, getSubmission, recordCheating,
-  canEnterExam, admitStudent
+  canEnterExam, admitStudent, startExam, createSnapshot
 } from '@/api';
 import { useAuthStore } from '@/stores/auth';
 import { useConfigStore } from '@/stores/config';
@@ -31,6 +31,9 @@ const loading = ref(true);
 const timeLeft = ref(0);
 const timer = ref(null);
 const reminderSent = ref(false);
+const answerSnapshotTimer = ref(null);
+const activeSubmissionId = ref(null);
+const examStartTime = ref(null);
 
 const isAnalysis = computed(() => !!submissionId);
 const submissionData = ref(null);
@@ -98,8 +101,17 @@ const fetchData = async () => {
         }
       }
 
+      try {
+        const startRes = await startExam(examId);
+        activeSubmissionId.value = startRes.data.id;
+        examStartTime.value = Date.now();
+      } catch (e) {
+        console.error('Failed to start exam:', e);
+      }
+
       timeLeft.value = exam.value.duration * 60; // seconds
       startTimer();
+      startAnswerSnapshotTimer();
       
       document.addEventListener('visibilitychange', handleVisibilityChange);
       if (exam.value.enableCamera) {
@@ -166,19 +178,54 @@ const toggleFlag = () => {
   }));
 };
 
+const sendAnswerSnapshot = async () => {
+  if (!activeSubmissionId.value || isAnalysis.value || !exam.value) return;
+  
+  try {
+    const elapsedSeconds = examStartTime.value 
+      ? Math.floor((Date.now() - examStartTime.value) / 1000)
+      : (exam.value.duration * 60 - timeLeft.value);
+    
+    await createSnapshot({
+      submissionId: activeSubmissionId.value,
+      currentQuestionIndex: currentIndex.value,
+      answers: { ...answers.value },
+      timeLeft: timeLeft.value,
+      elapsedSeconds: elapsedSeconds
+    });
+  } catch (e) {
+    console.error('Failed to send answer snapshot:', e);
+  }
+};
+
+const startAnswerSnapshotTimer = () => {
+  if (answerSnapshotTimer.value) {
+    clearInterval(answerSnapshotTimer.value);
+  }
+  answerSnapshotTimer.value = setInterval(() => {
+    sendAnswerSnapshot();
+  }, 30000);
+};
+
 const jumpTo = (index) => {
+  const oldIndex = currentIndex.value;
   currentIndex.value = index;
+  if (oldIndex !== index) {
+    sendAnswerSnapshot();
+  }
 };
 
 const nextQuestion = () => {
   if (currentIndex.value < questions.value.length - 1) {
     currentIndex.value++;
+    sendAnswerSnapshot();
   }
 };
 
 const prevQuestion = () => {
   if (currentIndex.value > 0) {
     currentIndex.value--;
+    sendAnswerSnapshot();
   }
 };
 
@@ -202,7 +249,11 @@ const handleSubmit = async (auto = false) => {
 const doSubmit = async () => {
   try {
     clearInterval(timer.value);
+    clearInterval(answerSnapshotTimer.value);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Send final snapshot before submit
+    await sendAnswerSnapshot();
     
     // Clean up local storage
     localStorage.removeItem(`exam_progress_${examId}_${authStore.user?.id}`);
@@ -354,6 +405,7 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(timer.value);
   clearInterval(snapshotInterval.value);
+  clearInterval(answerSnapshotTimer.value);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   
   const canvas = document.querySelector('.question-canvas');

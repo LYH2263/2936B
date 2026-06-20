@@ -37,4 +37,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
            "WHERE s.student.id = :studentId AND s.state = 'SUBMITTED' " +
            "AND e.startTime >= :startTime")
     long countExamsByStudentSince(@Param("studentId") Long studentId, @Param("startTime") LocalDateTime startTime);
+
+    List<Submission> findByExamIdAndStudentIdAndState(Long examId, Long studentId, String state);
 }

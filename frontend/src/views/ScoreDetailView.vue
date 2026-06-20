@@ -1,13 +1,16 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getSubmission, getExamQuestions } from '@/api';
+import { getSubmission, getExamQuestions, canViewReplay } from '@/api';
+import { useAuthStore } from '@/stores/auth';
 import { message } from 'ant-design-vue';
 import { 
   LeftOutlined, CheckCircleFilled, CloseCircleFilled, 
   InfoCircleOutlined, TrophyOutlined, ClockCircleOutlined,
-  CalendarOutlined, UserOutlined
+  CalendarOutlined, UserOutlined, PlayCircleOutlined
 } from '@ant-design/icons-vue';
+
+const authStore = useAuthStore();
 
 const route = useRoute();
 const router = useRouter();
@@ -16,6 +19,9 @@ const submissionId = route.params.id;
 const submission = ref(null);
 const questions = ref([]);
 const loading = ref(true);
+const canViewReplayFlag = ref(false);
+
+const isTeacher = computed(() => authStore.isTeacher);
 
 const fetchData = async () => {
   try {
@@ -24,6 +30,13 @@ const fetchData = async () => {
     
     const qRes = await getExamQuestions(submission.value.exam.id);
     questions.value = qRes.data;
+
+    try {
+      const replayRes = await canViewReplay(submissionId);
+      canViewReplayFlag.value = replayRes.data.canView;
+    } catch (e) {
+      canViewReplayFlag.value = false;
+    }
   } catch (e) {
     message.error('获取成绩详情失败');
     router.push('/dashboard');
@@ -76,8 +89,19 @@ onMounted(fetchData);
            <a-divider type="vertical" />
            <span class="exam-course">{{ submission.exam.course }}</span>
         </div>
-        <div class="score-summary-pill" v-if="submission">
-           <TrophyOutlined /> 最终得分: <span class="total-score">{{ submission.score }}</span> / {{ submission.examTotalScore }}
+        <div class="header-right-actions">
+          <a-button 
+            v-if="canViewReplayFlag" 
+            type="primary" 
+            size="small" 
+            @click="router.push(`/replay/${submissionId}`)"
+            class="replay-btn"
+          >
+            <PlayCircleOutlined /> 查看答题回放
+          </a-button>
+          <div class="score-summary-pill" v-if="submission">
+             <TrophyOutlined /> 最终得分: <span class="total-score">{{ submission.score }}</span> / {{ submission.examTotalScore }}
+          </div>
         </div>
       </div>
     </div>
@@ -218,6 +242,16 @@ onMounted(fetchData);
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
+}
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.replay-btn {
+  height: 36px;
+  border-radius: 18px;
+  font-weight: 600;
 }
 .back-btn {
   font-size: 16px;

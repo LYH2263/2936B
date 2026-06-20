@@ -73,6 +73,7 @@ export const getStudentStats = () => api.get('/submissions/stats');
 export const getTeacherStats = () => api.get('/submissions/teacher-stats');
 export const getExamSubmissions = (examId) => api.get(`/submissions/exam/${examId}`);
 export const getSubmission = (id) => api.get(`/submissions/${id}`);
+export const startExam = (examId) => api.post(`/submissions/${examId}/start`);
 export const getExamQuestions = (examId) => api.get(`/exams/${examId}/questions`);
 export const getAllQuestions = () => api.get('/exams/questions');
 export const publishExam = (examId, data) => api.post(`/exams/${examId}/publish`, data);
@@ -172,5 +173,10 @@ export const getGradingQuestionDetail = (questionId) => api.get(`/grading-workbe
 export const updateRubric = (questionId, rubric) => api.put(`/grading-workbench/question/${questionId}/rubric`, { rubric });
 export const batchGrade = (items) => api.post('/grading-workbench/batch-grade', items);
 export const getGradingStats = () => api.get('/grading-workbench/stats');
+
+// Answer Snapshots
+export const createSnapshot = (data) => api.post('/snapshots', data);
+export const getReplayData = (submissionId) => api.get(`/snapshots/replay/${submissionId}`);
+export const canViewReplay = (submissionId) => api.get(`/snapshots/can-view/${submissionId}`);
 
 export default api;

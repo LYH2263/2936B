@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import {
   getGradingExams,
@@ -20,8 +21,11 @@ import {
   ReloadOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
-  UserOutlined
+  UserOutlined,
+  PlayCircleOutlined
 } from '@ant-design/icons-vue';
+
+const router = useRouter();
 
 const authStore = useAuthStore();
 
@@ -476,6 +480,14 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
+              <a-button 
+                type="text" 
+                size="small" 
+                @click.stop="router.push(`/replay/${currentItem.submissionId}`)"
+                class="replay-btn"
+              >
+                <PlayCircleOutlined /> 查看答题回放
+              </a-button>
               <div class="score-display">
                 <span class="score-label">得分</span>
                 <span class="score-value">
