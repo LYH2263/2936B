@@ -23,6 +23,8 @@ public class DataSeeder {
                                       ExamQuestionRepository examQuestionRepository,
                                       SubmissionRepository submissionRepository,
                                       SubmissionAnswerRepository submissionAnswerRepository,
+                                      ExamTemplateRepository examTemplateRepository,
+                                      ExamTemplateQuestionRepository examTemplateQuestionRepository,
                                       PasswordEncoder passwordEncoder) {
         return args -> {
             // 1. Create Users if not exist
@@ -68,7 +70,77 @@ public class DataSeeder {
                 }
                 System.out.println("Data Seeding Completed with Realistic Chinese Data!");
             }
+
+            if (examTemplateRepository.count() == 0 && teacher1 != null) {
+                seedTemplates(examTemplateRepository, examTemplateQuestionRepository, questionRepository, teacher1, teacher2);
+            }
         };
+    }
+
+    private void seedTemplates(ExamTemplateRepository tplRepo, ExamTemplateQuestionRepository tqRepo,
+                               QuestionRepository qRepo, User teacher1, User teacher2) {
+        List<Question> allQuestions = qRepo.findAll();
+
+        ExamTemplate mathTpl = new ExamTemplate();
+        mathTpl.setName("高等数学标准模板");
+        mathTpl.setDescription("涵盖微积分、线性代数基础，适合期中期末考试");
+        mathTpl.setCourse("数学");
+        mathTpl.setVisibility("PUBLIC");
+        mathTpl.setReviewStatus("APPROVED");
+        mathTpl.setTags("数学,微积分,线性代数,期中");
+        mathTpl.setDuration(90);
+        mathTpl.setCreator(teacher1);
+        mathTpl = tplRepo.save(mathTpl);
+
+        List<Question> mathQs = allQuestions.stream()
+                .filter(q -> q.getContent().contains("导数") || q.getContent().contains("交换律") || q.getContent().contains("三角函数"))
+                .limit(3)
+                .toList();
+        for (int i = 0; i < mathQs.size(); i++) {
+            ExamTemplateQuestion tq = new ExamTemplateQuestion();
+            tq.setTemplate(mathTpl);
+            tq.setQuestion(mathQs.get(i));
+            tq.setScore(mathQs.get(i).getDefaultScore());
+            tq.setSequence(i + 1);
+            tqRepo.save(tq);
+        }
+
+        ExamTemplate historyTpl = new ExamTemplate();
+        historyTpl.setName("中国古代史通用模板");
+        historyTpl.setDescription("秦汉至明清历史变迁考察");
+        historyTpl.setCourse("历史");
+        historyTpl.setVisibility("PUBLIC");
+        historyTpl.setReviewStatus("APPROVED");
+        historyTpl.setTags("历史,古代史,秦汉");
+        historyTpl.setDuration(45);
+        historyTpl.setCreator(teacher2 != null ? teacher2 : teacher1);
+        historyTpl = tplRepo.save(historyTpl);
+
+        List<Question> historyQs = allQuestions.stream()
+                .filter(q -> q.getContent().contains("秦始皇") || q.getContent().contains("唐朝") || q.getContent().contains("统一六国"))
+                .limit(2)
+                .toList();
+        for (int i = 0; i < historyQs.size(); i++) {
+            ExamTemplateQuestion tq = new ExamTemplateQuestion();
+            tq.setTemplate(historyTpl);
+            tq.setQuestion(historyQs.get(i));
+            tq.setScore(historyQs.get(i).getDefaultScore());
+            tq.setSequence(i + 1);
+            tqRepo.save(tq);
+        }
+
+        ExamTemplate privateTpl = new ExamTemplate();
+        privateTpl.setName("我的私有模板");
+        privateTpl.setDescription("仅供个人使用的模板");
+        privateTpl.setCourse("计算机");
+        privateTpl.setVisibility("PRIVATE");
+        privateTpl.setReviewStatus("APPROVED");
+        privateTpl.setTags("计算机,基础");
+        privateTpl.setDuration(120);
+        privateTpl.setCreator(teacher1);
+        tplRepo.save(privateTpl);
+
+        System.out.println("Template seed data created!");
     }
 
     private User createUser(UserRepository repo, PasswordEncoder encoder, String username, String role, String fullName) {

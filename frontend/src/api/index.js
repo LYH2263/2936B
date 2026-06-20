@@ -119,4 +119,17 @@ export const importUsers = (formData) => api.post('/users/import', formData, {
 export const exportUsers = () => api.get('/users/export', { responseType: 'blob' });
 export const resetUserPassword = (id, password) => api.post(`/users/${id}/reset-password`, { password });
 
+// Exam Templates
+export const getTemplates = () => api.get('/templates');
+export const searchTemplates = (params) => api.get('/templates/search', { params });
+export const getTemplate = (id) => api.get(`/templates/${id}`);
+export const getTemplateQuestions = (id) => api.get(`/templates/${id}/questions`);
+export const getMyTemplates = () => api.get('/templates/my');
+export const saveAsTemplate = (examId, data) => api.post(`/templates/${examId}/save`, data);
+export const createExamFromTemplate = (templateId, data) => api.post(`/templates/${templateId}/create-exam`, data);
+export const updateTemplate = (id, data) => api.put(`/templates/${id}`, data);
+export const deleteTemplate = (id) => api.delete(`/templates/${id}`);
+export const getPendingTemplates = () => api.get('/templates/pending');
+export const reviewTemplate = (id, data) => api.post(`/templates/${id}/review`, data);
+
 export default api;

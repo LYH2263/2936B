@@ -393,7 +393,7 @@ onMounted(() => {
             </div>
          </a-layout-content>
       </a-layout>
-    </div>
+    </a-layout>
   </div>
   <div v-else class="practice-loading">
     <a-spin size="large" tip="正在加载练习题目..." />

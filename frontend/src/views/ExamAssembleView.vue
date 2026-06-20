@@ -3,14 +3,15 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   getExam, getExamQuestions, getAllQuestions, 
-  addQuestionToExam, updateExamQuestion, removeQuestionFromExam 
+  addQuestionToExam, updateExamQuestion, removeQuestionFromExam,
+  saveAsTemplate
 } from '@/api';
 import { message } from 'ant-design-vue';
 import { 
   LeftOutlined, SearchOutlined, PlusCircleOutlined, 
   DeleteOutlined, HolderOutlined, SaveOutlined,
   CheckCircleOutlined, InfoCircleOutlined,
-  ArrowUpOutlined, ArrowDownOutlined
+  ArrowUpOutlined, ArrowDownOutlined, SaveFilled
 } from '@ant-design/icons-vue';
 
 const route = useRoute();
@@ -148,6 +149,42 @@ const getDifficultyColor = (d) => {
   return 'red';
 };
 
+const saveTemplateVisible = ref(false);
+const saveTemplateLoading = ref(false);
+const templateForm = ref({
+  name: '',
+  description: '',
+  visibility: 'PRIVATE',
+  tags: ''
+});
+
+const showSaveTemplate = () => {
+  templateForm.value = {
+    name: exam.value ? exam.value.title + '（模板）' : '',
+    description: exam.value?.description || '',
+    visibility: 'PRIVATE',
+    tags: exam.value?.course || ''
+  };
+  saveTemplateVisible.value = true;
+};
+
+const handleSaveTemplate = async () => {
+  if (!templateForm.value.name.trim()) {
+    message.warning('请输入模板名称');
+    return;
+  }
+  saveTemplateLoading.value = true;
+  try {
+    await saveAsTemplate(examId, templateForm.value);
+    message.success('已保存为模板');
+    saveTemplateVisible.value = false;
+  } catch (e) {
+    message.error('保存模板失败');
+  } finally {
+    saveTemplateLoading.value = false;
+  }
+};
+
 onMounted(fetchData);
 </script>
 
@@ -166,6 +203,9 @@ onMounted(fetchData);
           <div class="total-score-pill">
              总分: <span>{{ totalScore }}</span>
           </div>
+          <a-button @click="showSaveTemplate" :disabled="examQuestions.length === 0">
+             <SaveFilled /> 另存为模板
+          </a-button>
           <a-button type="primary" :loading="saving" @click="saveAssembly">
              <SaveOutlined /> 保存配置
           </a-button>
@@ -268,6 +308,38 @@ onMounted(fetchData);
         </div>
       </div>
     </div>
+
+    <a-modal
+      v-model:open="saveTemplateVisible"
+      title="另存为模板"
+      :confirmLoading="saveTemplateLoading"
+      @ok="handleSaveTemplate"
+      okText="保存模板"
+      cancelText="取消"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="模板名称" required>
+          <a-input v-model:value="templateForm.name" placeholder="请输入模板名称" />
+        </a-form-item>
+        <a-form-item label="模板描述">
+          <a-textarea v-model:value="templateForm.description" placeholder="模板描述（可选）" :rows="3" />
+        </a-form-item>
+        <a-form-item label="可见性">
+          <a-radio-group v-model:value="templateForm.visibility">
+            <a-radio value="PRIVATE">私有（仅自己可见）</a-radio>
+            <a-radio value="PUBLIC">公开（需管理员审核）</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item label="标签">
+          <a-input v-model:value="templateForm.tags" placeholder="多个标签用逗号分隔，如：数学,期中" />
+        </a-form-item>
+      </a-form>
+      <a-alert
+        message="模板将保存当前试卷的题目引用与分值结构，不复制题目内容"
+        type="info"
+        showIcon
+      />
+    </a-modal>
   </div>
 </template>
 
