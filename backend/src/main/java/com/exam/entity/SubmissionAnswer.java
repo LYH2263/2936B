@@ -7,7 +7,8 @@ import lombok.Data;
 @Entity
 @Table(name = "submission_answers", indexes = {
     @Index(name = "idx_answer_submission", columnList = "submission_id"),
-    @Index(name = "idx_answer_question", columnList = "question_id")
+    @Index(name = "idx_answer_question", columnList = "question_id"),
+    @Index(name = "idx_answer_question_score", columnList = "question_id,score")
 })
 public class SubmissionAnswer {
     @Id

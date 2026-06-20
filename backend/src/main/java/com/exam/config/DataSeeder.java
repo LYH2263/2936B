@@ -74,6 +74,13 @@ public class DataSeeder {
             if (examTemplateRepository.count() == 0 && teacher1 != null) {
                 seedTemplates(examTemplateRepository, examTemplateQuestionRepository, questionRepository, teacher1, teacher2);
             }
+
+            // 3. Seed Learning Alert Acceptance Test Data
+            if (submissionRepository.count() < 5) {
+                seedAlertAcceptanceData(userRepository, examRepository, questionRepository,
+                        examQuestionRepository, submissionRepository, submissionAnswerRepository,
+                        passwordEncoder, teacher1);
+            }
         };
     }
 
@@ -156,6 +163,7 @@ public class DataSeeder {
         Exam exam = new Exam();
         exam.setTitle("高等数学期中考试");
         exam.setDescription("本试卷涵盖微积分、线性代数基础知识。请在规定时间内完成。");
+        exam.setCourse("数学");
         exam.setDuration(90);
         exam.setState("PUBLISHED");
         exam.setCreator(creator);
@@ -166,11 +174,11 @@ public class DataSeeder {
 
         List<Question> questions = new ArrayList<>();
         questions.add(createQuestion(questionRepo, creator, "SINGLE", "函数 f(x) = x^2 在 x=1 处的导数是？", 
-            "[{\"label\":\"A\",\"text\":\"1\"},{\"label\":\"B\",\"text\":\"2\"},{\"label\":\"C\",\"text\":\"3\"},{\"label\":\"D\",\"text\":\"0\"}]", "B", "f'(x)=2x, f'(1)=2", 5));
+            "[{\"label\":\"A\",\"text\":\"1\"},{\"label\":\"B\",\"text\":\"2\"},{\"label\":\"C\",\"text\":\"3\"},{\"label\":\"D\",\"text\":\"0\"}]", "B", "f'(x)=2x, f'(1)=2", 5, "导数与微分"));
         questions.add(createQuestion(questionRepo, creator, "JUDGE", "矩阵乘法满足交换律。", 
-            null, "FALSE", "矩阵乘法一般不满足交换律 AB != BA", 5));
+            null, "FALSE", "矩阵乘法一般不满足交换律 AB != BA", 5, "线性代数-矩阵运算"));
         questions.add(createQuestion(questionRepo, creator, "MULTI", "下列哪些是三角函数？", 
-            "[{\"label\":\"A\",\"text\":\"sin(x)\"},{\"label\":\"B\",\"text\":\"cos(x)\"},{\"label\":\"C\",\"text\":\"log(x)\"},{\"label\":\"D\",\"text\":\"tan(x)\"}]", "ABD", null, 5));
+            "[{\"label\":\"A\",\"text\":\"sin(x)\"},{\"label\":\"B\",\"text\":\"cos(x)\"},{\"label\":\"C\",\"text\":\"log(x)\"},{\"label\":\"D\",\"text\":\"tan(x)\"}]", "ABD", null, 5, "三角函数"));
 
         linkQuestionsToExam(eqRepo, exam, questions);
     }
@@ -238,6 +246,10 @@ public class DataSeeder {
     }
 
     private Question createQuestion(QuestionRepository repo, User creator, String type, String content, String options, String answer, String analysis, int score) {
+        return createQuestion(repo, creator, type, content, options, answer, analysis, score, null);
+    }
+
+    private Question createQuestion(QuestionRepository repo, User creator, String type, String content, String options, String answer, String analysis, int score, String knowledgePoint) {
         Question q = new Question();
         q.setCreator(creator);
         q.setType(type);
@@ -246,6 +258,7 @@ public class DataSeeder {
         q.setAnswer(answer);
         q.setAnalysis(analysis);
         q.setDefaultScore(score);
+        q.setKnowledgePoint(knowledgePoint);
         return repo.save(q);
     }
 
@@ -258,5 +271,154 @@ public class DataSeeder {
             eq.setSequence(i + 1);
             eqRepo.save(eq);
         }
+    }
+
+    private void seedAlertAcceptanceData(UserRepository userRepo, ExamRepository examRepo,
+                                          QuestionRepository qRepo, ExamQuestionRepository eqRepo,
+                                          SubmissionRepository subRepo, SubmissionAnswerRepository saRepo,
+                                          PasswordEncoder encoder, User teacher) {
+        System.out.println("Seeding Learning Alert Acceptance Test Data...");
+
+        User weakStudent = userRepo.findByUsername("2024999").orElseGet(() -> {
+            User u = new User();
+            u.setUsername("2024999");
+            u.setPassword(encoder.encode("123456"));
+            u.setRole("STUDENT");
+            u.setFullName("困难生小明");
+            u.setClazz("预警测试班");
+            u.setCreatedAt(LocalDateTime.now().minusDays(100));
+            return userRepo.save(u);
+        });
+
+        User absentStudent = userRepo.findByUsername("2024998").orElseGet(() -> {
+            User u = new User();
+            u.setUsername("2024998");
+            u.setPassword(encoder.encode("123456"));
+            u.setRole("STUDENT");
+            u.setFullName("长期缺考小华");
+            u.setClazz("预警测试班");
+            u.setCreatedAt(LocalDateTime.now().minusDays(100));
+            return userRepo.save(u);
+        });
+
+        List<Exam> allExams = examRepo.findAll();
+        Exam mathExam = allExams.stream().filter(e -> "数学".equals(e.getCourse())).findFirst()
+                .orElse(allExams.isEmpty() ? null : allExams.get(0));
+
+        if (mathExam == null) {
+            return;
+        }
+
+        Exam alertExam1 = new Exam();
+        alertExam1.setTitle("预警测试-第一次月考（数学）");
+        alertExam1.setCourse("数学");
+        alertExam1.setDescription("学情预警验收测试：第一次低分考试");
+        alertExam1.setDuration(90);
+        alertExam1.setState("ENDED");
+        alertExam1.setCreator(teacher);
+        alertExam1.setStartTime(LocalDateTime.now().minusDays(20));
+        alertExam1.setEndTime(LocalDateTime.now().minusDays(19));
+        alertExam1 = examRepo.save(alertExam1);
+
+        Exam alertExam2 = new Exam();
+        alertExam2.setTitle("预警测试-第二次月考（数学）");
+        alertExam2.setCourse("数学");
+        alertExam2.setDescription("学情预警验收测试：第二次连续低分考试");
+        alertExam2.setDuration(90);
+        alertExam2.setState("ENDED");
+        alertExam2.setCreator(teacher);
+        alertExam2.setStartTime(LocalDateTime.now().minusDays(6));
+        alertExam2.setEndTime(LocalDateTime.now().minusDays(5));
+        alertExam2 = examRepo.save(alertExam2);
+
+        List<Question> kpQuestions = new ArrayList<>();
+        String targetKP = "一元二次方程";
+        for (int i = 0; i < 5; i++) {
+            Question q = new Question();
+            q.setCreator(teacher);
+            q.setType("SINGLE");
+            q.setContent("一元二次方程测试题 #" + (i + 1) + "：方程 x^2 + " + (i+1) + "x + " + i + " = 0 的解是？");
+            q.setOptions("[{\"label\":\"A\",\"text\":\"x=1\"},{\"label\":\"B\",\"text\":\"x=-1\"},{\"label\":\"C\",\"text\":\"x=2\"},{\"label\":\"D\",\"text\":\"无解\"}]");
+            q.setAnswer("A");
+            q.setAnalysis("标准一元二次方程求解");
+            q.setDefaultScore(10);
+            q.setKnowledgePoint(targetKP);
+            q.setSubject("数学");
+            kpQuestions.add(qRepo.save(q));
+        }
+
+        Question trigQ = createQuestion(qRepo, teacher, "SINGLE",
+                "sin(30°) 的值是？",
+                "[{\"label\":\"A\",\"text\":\"1/2\"},{\"label\":\"B\",\"text\":\"√2/2\"},{\"label\":\"C\",\"text\":\"√3/2\"},{\"label\":\"D\",\"text\":\"1\"}]",
+                "A", "sin(30°)=1/2", 10, "三角函数");
+        Question derivQ = createQuestion(qRepo, teacher, "SINGLE",
+                "f(x)=x^3 的导数 f'(x) = ?",
+                "[{\"label\":\"A\",\"text\":\"3x^2\"},{\"label\":\"B\",\"text\":\"x^2\"},{\"label\":\"C\",\"text\":\"3x\"},{\"label\":\"D\",\"text\":\"x^3\"}]",
+                "A", "幂函数求导法则", 10, "导数与微分");
+        Question matrixQ = createQuestion(qRepo, teacher, "JUDGE",
+                "单位矩阵乘以任何矩阵等于原矩阵。",
+                null, "TRUE", "单位矩阵性质", 10, "线性代数-矩阵运算");
+
+        List<Question> allAlertQs = new ArrayList<>(kpQuestions);
+        allAlertQs.add(trigQ);
+        allAlertQs.add(derivQ);
+        allAlertQs.add(matrixQ);
+        linkQuestionsToExam(eqRepo, alertExam1, allAlertQs);
+        linkQuestionsToExam(eqRepo, alertExam2, allAlertQs);
+
+        int totalScore = allAlertQs.stream().mapToInt(Question::getDefaultScore).sum();
+        int lowScore = (int) Math.floor(totalScore * 0.4);
+
+        Submission sub1 = new Submission();
+        sub1.setStudent(weakStudent);
+        sub1.setExam(alertExam1);
+        sub1.setStartTime(LocalDateTime.now().minusDays(20));
+        sub1.setEndTime(LocalDateTime.now().minusDays(19).plusHours(1));
+        sub1.setState("SUBMITTED");
+        sub1.setScore(lowScore);
+        sub1 = subRepo.save(sub1);
+
+        for (Question q : allAlertQs) {
+            SubmissionAnswer sa = new SubmissionAnswer();
+            sa.setSubmission(sub1);
+            sa.setQuestion(q);
+            if (targetKP.equals(q.getKnowledgePoint())) {
+                sa.setScore(0);
+                sa.setStudentAnswer("WRONG_" + q.getId());
+            } else if ("三角函数".equals(q.getKnowledgePoint())) {
+                sa.setScore(0);
+            } else {
+                sa.setScore(q.getDefaultScore());
+                sa.setStudentAnswer(q.getAnswer());
+            }
+            saRepo.save(sa);
+        }
+
+        Submission sub2 = new Submission();
+        sub2.setStudent(weakStudent);
+        sub2.setExam(alertExam2);
+        sub2.setStartTime(LocalDateTime.now().minusDays(6));
+        sub2.setEndTime(LocalDateTime.now().minusDays(5).plusHours(1));
+        sub2.setState("SUBMITTED");
+        sub2.setScore(lowScore - 5);
+        sub2 = subRepo.save(sub2);
+
+        for (Question q : allAlertQs) {
+            SubmissionAnswer sa = new SubmissionAnswer();
+            sa.setSubmission(sub2);
+            sa.setQuestion(q);
+            if (targetKP.equals(q.getKnowledgePoint())) {
+                sa.setScore(0);
+                sa.setStudentAnswer("WRONG2_" + q.getId());
+            } else {
+                sa.setScore(Math.max(0, q.getDefaultScore() - 5));
+            }
+            saRepo.save(sa);
+        }
+
+        absentStudent.setCreatedAt(LocalDateTime.now().minusDays(100));
+        userRepo.save(absentStudent);
+
+        System.out.println("Alert Acceptance Data Seeded! 已创建学生「困难生小明(2024999)」两次考试低于及格线 + 知识点「一元二次方程」低于40%；学生「长期缺考小华(2024998)」注册100天未参加考试。密码均为 123456。");
     }
 }

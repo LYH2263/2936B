@@ -12,6 +12,7 @@ import WrongBookView from '@/views/WrongBookView.vue'
 import WrongBookPracticeView from '@/views/WrongBookPracticeView.vue'
 import ReservationQueueView from '@/views/ReservationQueueView.vue'
 import TemplatesView from '@/views/TemplatesView.vue'
+import LearningAlertCenterView from '@/views/LearningAlertCenterView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -90,6 +91,12 @@ const router = createRouter({
             name: 'templates',
             component: TemplatesView,
             meta: { requiresAuth: true }
+        },
+        {
+            path: '/learning-alerts',
+            name: 'learning-alerts',
+            component: LearningAlertCenterView,
+            meta: { requiresAuth: true, requiresTeacher: true }
         }
     ]
 })
@@ -98,6 +105,8 @@ router.beforeEach((to, from, next) => {
     const authStore = useAuthStore()
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
         next('/login')
+    } else if (to.meta.requiresTeacher && !authStore.isTeacher) {
+        next('/dashboard')
     } else {
         next()
     }

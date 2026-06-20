@@ -21,6 +21,8 @@ import UserManagementView from '@/views/UserManagementView.vue';
 import { getNotifications, markNotificationRead } from '@/api';
 import { notification, Button as AButton } from 'ant-design-vue';
 import SystemConfigView from '@/views/SystemConfigView.vue';
+import LearningAlertCenterView from '@/views/LearningAlertCenterView.vue';
+import { WarningOutlined, SecurityScanOutlined } from '@ant-design/icons-vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -356,6 +358,10 @@ const userInitial = computed(() => {
           <TeamOutlined />
           <span>用户管理</span>
         </a-menu-item>
+        <a-menu-item key="alerts" v-if="authStore.isTeacher || authStore.isAdmin">
+          <WarningOutlined />
+          <span>预警中心</span>
+        </a-menu-item>
         <a-menu-item key="config" v-if="authStore.isAdmin">
           <SettingOutlined />
           <span>系统设置</span>
@@ -377,6 +383,7 @@ const userInitial = computed(() => {
               'hall': '考试大厅', 
               'scores': '我的成绩', 
               'users': '用户管理', 
+              'alerts': '预警中心',
               'config': '系统设置', 
               'profile': '个人资料' 
             }[activeTab] }}
@@ -679,6 +686,11 @@ const userInitial = computed(() => {
           <!-- USER MANAGEMENT -->
           <div v-if="activeTab === 'users'">
              <UserManagementView />
+          </div>
+
+          <!-- LEARNING ALERT CENTER -->
+          <div v-if="activeTab === 'alerts' && (authStore.isTeacher || authStore.isAdmin)">
+             <LearningAlertCenterView />
           </div>
 
           <!-- PROFILE -->

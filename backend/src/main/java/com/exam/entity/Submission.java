@@ -9,7 +9,10 @@ import java.util.List;
 @Entity
 @Table(name = "submissions", indexes = {
     @Index(name = "idx_submission_exam", columnList = "exam_id"),
-    @Index(name = "idx_submission_student", columnList = "student_id")
+    @Index(name = "idx_submission_student", columnList = "student_id"),
+    @Index(name = "idx_submission_student_endtime", columnList = "student_id,endTime"),
+    @Index(name = "idx_submission_state", columnList = "state"),
+    @Index(name = "idx_submission_student_state", columnList = "student_id,state")
 })
 public class Submission {
     @Id

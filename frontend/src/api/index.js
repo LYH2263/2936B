@@ -132,4 +132,17 @@ export const deleteTemplate = (id) => api.delete(`/templates/${id}`);
 export const getPendingTemplates = () => api.get('/templates/pending');
 export const reviewTemplate = (id, data) => api.post(`/templates/${id}/review`, data);
 
+// Learning Alerts
+export const scanLearningAlerts = (params) => api.post('/learning-alerts/scan', params || {});
+export const getLearningAlerts = (params) => api.get('/learning-alerts', { params });
+export const getAlertStats = () => api.get('/learning-alerts/stats');
+export const getAlertDetail = (id) => api.get(`/learning-alerts/${id}`);
+export const resolveAlert = (id) => api.post(`/learning-alerts/${id}/resolve`);
+export const resolveAlertsBatch = (ids) => api.post('/learning-alerts/resolve/batch', { ids });
+export const exportLearningAlerts = (params) => api.get('/learning-alerts/export', {
+    params,
+    responseType: 'blob'
+});
+export const getMyAlerts = () => api.get('/learning-alerts/my');
+
 export default api;
