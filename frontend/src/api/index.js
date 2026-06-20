@@ -88,6 +88,16 @@ export const recordCheating = (examId, data) => api.post(`/exams/${examId}/recor
 export const getNotifications = () => api.get('/notifications');
 export const markNotificationRead = (id) => api.post(`/notifications/${id}/read`);
 
+// Wrong Question Book
+export const getWrongQuestions = (params) => api.get('/wrong-book', { params });
+export const getWrongBookStats = () => api.get('/wrong-book/stats');
+export const getWrongBookSubjects = () => api.get('/wrong-book/subjects');
+export const getWrongBookKnowledgePoints = () => api.get('/wrong-book/knowledge-points');
+export const getPracticeQuestions = (count = 10) => api.get('/wrong-book/practice', { params: { count } });
+export const submitPracticeResult = (data) => api.post('/wrong-book/practice/submit', data);
+export const removeFromWrongBook = (questionId) => api.delete(`/wrong-book/${questionId}`);
+export const markQuestionMastered = (questionId) => api.put(`/wrong-book/${questionId}/mastered`);
+
 // User Management
 export const getUsers = (params) => api.get('/users', { params });
 export const createUser = (data) => api.post('/users', data);

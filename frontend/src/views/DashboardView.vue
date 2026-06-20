@@ -9,7 +9,7 @@ import {
   UserOutlined, LogoutOutlined, PlusOutlined, UnorderedListOutlined, 
   BankOutlined, ProfileOutlined, BookOutlined, TeamOutlined, FileTextOutlined,
   SettingOutlined, DashboardOutlined, TrophyOutlined, HourglassOutlined, ReadOutlined,
-  SearchOutlined, BarsOutlined
+  SearchOutlined, BarsOutlined, EditOutlined
 } from '@ant-design/icons-vue';
 import CreateExamModal from '@/components/CreateExamModal.vue';
 import AddQuestionModal from '@/components/AddQuestionModal.vue';
@@ -149,6 +149,10 @@ const getExamStatus = (exam) => {
 };
 
 const handleMenuClick = ({ key }) => {
+  if (key === 'wrong-book') {
+    router.push('/wrong-book');
+    return;
+  }
   activeTab.value = key;
   router.push({ path: '/dashboard', query: { tab: key } });
 };
@@ -335,6 +339,10 @@ const userInitial = computed(() => {
         <a-menu-item key="scores" v-if="authStore.user?.role === 'STUDENT'">
           <TrophyOutlined />
           <span>我的成绩</span>
+        </a-menu-item>
+        <a-menu-item key="wrong-book" v-if="authStore.user?.role === 'STUDENT'">
+          <EditOutlined />
+          <span>错题本</span>
         </a-menu-item>
         <a-menu-item key="users" v-if="authStore.isTeacher || authStore.isAdmin">
           <TeamOutlined />

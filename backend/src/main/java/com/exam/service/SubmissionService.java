@@ -19,14 +19,16 @@ public class SubmissionService {
     private final QuestionRepository questionRepository;
     private final UserRepository userRepository;
     private final ExamQuestionRepository examQuestionRepository;
+    private final WrongQuestionBookService wrongQuestionBookService;
 
-    public SubmissionService(SubmissionRepository submissionRepository, SubmissionAnswerRepository submissionAnswerRepository, ExamRepository examRepository, QuestionRepository questionRepository, UserRepository userRepository, ExamQuestionRepository examQuestionRepository) {
+    public SubmissionService(SubmissionRepository submissionRepository, SubmissionAnswerRepository submissionAnswerRepository, ExamRepository examRepository, QuestionRepository questionRepository, UserRepository userRepository, ExamQuestionRepository examQuestionRepository, WrongQuestionBookService wrongQuestionBookService) {
         this.submissionRepository = submissionRepository;
         this.submissionAnswerRepository = submissionAnswerRepository;
         this.examRepository = examRepository;
         this.questionRepository = questionRepository;
         this.userRepository = userRepository;
         this.examQuestionRepository = examQuestionRepository;
+        this.wrongQuestionBookService = wrongQuestionBookService;
     }
 
     @Transactional
@@ -107,7 +109,11 @@ public class SubmissionService {
         }
         
         submission.setScore(totalScore);
-        return submissionRepository.save(submission);
+        Submission savedSubmission = submissionRepository.save(submission);
+        
+        wrongQuestionBookService.processSubmissionWrongQuestions(savedSubmission.getId());
+        
+        return savedSubmission;
     }
     
     public List<Submission> getStudentSubmissions(String username) {
@@ -173,6 +179,8 @@ public class SubmissionService {
         
         submission.setScore(totalScore);
         submissionRepository.save(submission);
+        
+        wrongQuestionBookService.processSubmissionWrongQuestions(submissionId);
     }
 
     public StudentStatsDTO getStudentStats(String username) {
