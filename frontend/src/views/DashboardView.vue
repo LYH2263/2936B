@@ -9,7 +9,7 @@ import {
   UserOutlined, LogoutOutlined, PlusOutlined, UnorderedListOutlined, 
   BankOutlined, ProfileOutlined, BookOutlined, TeamOutlined, FileTextOutlined,
   SettingOutlined, DashboardOutlined, TrophyOutlined, HourglassOutlined, ReadOutlined,
-  SearchOutlined, BarsOutlined, EditOutlined, AppstoreOutlined
+  SearchOutlined, BarsOutlined, EditOutlined, AppstoreOutlined, FireOutlined
 } from '@ant-design/icons-vue';
 import CreateExamModal from '@/components/CreateExamModal.vue';
 import AddQuestionModal from '@/components/AddQuestionModal.vue';
@@ -157,6 +157,10 @@ const handleMenuClick = ({ key }) => {
   }
   if (key === 'templates') {
     router.push('/templates');
+    return;
+  }
+  if (key === 'pk') {
+    router.push('/pk');
     return;
   }
   activeTab.value = key;
@@ -345,6 +349,10 @@ const userInitial = computed(() => {
         <a-menu-item key="hall">
           <BookOutlined />
           <span>考试大厅</span>
+        </a-menu-item>
+        <a-menu-item key="pk" v-if="authStore.user?.role === 'STUDENT'">
+          <FireOutlined />
+          <span>PK对战</span>
         </a-menu-item>
         <a-menu-item key="scores" v-if="authStore.user?.role === 'STUDENT'">
           <TrophyOutlined />

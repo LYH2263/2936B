@@ -145,4 +145,13 @@ export const exportLearningAlerts = (params) => api.get('/learning-alerts/export
 });
 export const getMyAlerts = () => api.get('/learning-alerts/my');
 
+// PK Mode
+export const createPkMatch = () => api.post('/pk/match');
+export const createPkBotMatch = () => api.post('/pk/bot-match');
+export const cancelPkMatch = () => api.post('/pk/cancel');
+export const getPkSession = (id) => api.get(`/pk/session/${id}`);
+export const submitPkAnswer = (id, data) => api.post(`/pk/session/${id}/answer`, data);
+export const forfeitPk = (id) => api.post(`/pk/session/${id}/forfeit`);
+export const getPkWeeklyRanking = () => api.get('/pk/ranking/weekly');
+
 export default api;

@@ -13,6 +13,9 @@ import WrongBookPracticeView from '@/views/WrongBookPracticeView.vue'
 import ReservationQueueView from '@/views/ReservationQueueView.vue'
 import TemplatesView from '@/views/TemplatesView.vue'
 import LearningAlertCenterView from '@/views/LearningAlertCenterView.vue'
+import PkLobbyView from '@/views/PkLobbyView.vue'
+import PkBattleView from '@/views/PkBattleView.vue'
+import PkRankingView from '@/views/PkRankingView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -97,6 +100,24 @@ const router = createRouter({
             name: 'learning-alerts',
             component: LearningAlertCenterView,
             meta: { requiresAuth: true, requiresTeacher: true }
+        },
+        {
+            path: '/pk',
+            name: 'pk-lobby',
+            component: PkLobbyView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/pk/:id',
+            name: 'pk-battle',
+            component: PkBattleView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/pk/ranking',
+            name: 'pk-ranking',
+            component: PkRankingView,
+            meta: { requiresAuth: true }
         }
     ]
 })
