@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Color Palette - Modern Vibrant Hues */
+  --primary-color: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-light: #eef2ff;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --text-main: #1f2937;
+  --text-secondary: #6b7280;
+  --bg-main: #f9fafb;
+  --bg-card: #ffffff;
+
+  /* Shadows - Layered and Soft */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-premium: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Borders */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --border-light: 1px solid #f3f4f6;
+
+  /* Glassmorphism Defaults */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-blur: blur(12px);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Global Transitions */
+* {
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Premium Card Style */
+.premium-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: var(--border-light);
+  padding: 24px;
+}
+
+.premium-card:hover {
+  box-shadow: var(--shadow-premium);
+}
+
+/* Glass View Utility */
+.glass-effect {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+}
+
+/* Modern Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Ant Design Overrides for modern look */
+.ant-btn {
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.ant-btn-primary {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.ant-card {
+  border-radius: var(--radius-md) !important;
+}
+
+.ant-layout-sider {
+  background: #111827 !important;
+}
+
+.ant-menu.ant-menu-dark {
+  background: transparent !important;
+}
+
+/* Page Transitions */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-10px);
+}

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # Database Service
+  db:
+    image: mysql:8.0
+    container_name: exam_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: exam_system
+    ports:
+      - "3308:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./backend/src/main/resources/sql:/docker-entrypoint-initdb.d # Auto-init SQL
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: exam_backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/exam_system?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "8081:8080"
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: exam_frontend
+    restart: always
+    ports:
+      - "3001:80" # Maps port 80 inside container to 3001 on host
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
