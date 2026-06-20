@@ -18,6 +18,7 @@ import PkBattleView from '@/views/PkBattleView.vue'
 import PkRankingView from '@/views/PkRankingView.vue'
 import GradingWorkbenchView from '@/views/GradingWorkbenchView.vue'
 import ReplayView from '@/views/ReplayView.vue'
+import ExamVersionsView from '@/views/ExamVersionsView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -132,6 +133,12 @@ const router = createRouter({
             name: 'replay',
             component: ReplayView,
             meta: { requiresAuth: true }
+        },
+        {
+            path: '/exam/:id/versions',
+            name: 'exam-versions',
+            component: ExamVersionsView,
+            meta: { requiresAuth: true, requiresTeacher: true }
         }
     ]
 })

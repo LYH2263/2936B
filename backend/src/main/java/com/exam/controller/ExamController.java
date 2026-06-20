@@ -134,4 +134,15 @@ public class ExamController {
         examService.recordCheatingEvent(examId, principal.getName(), type, detail);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{examId}/assembly")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<?> saveAssembly(@PathVariable Long examId,
+                                          @RequestBody Map<String, Object> body,
+                                          Principal principal) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> questions = (List<Map<String, Object>>) body.get("questions");
+        examService.saveAssembly(examId, questions, principal.getName());
+        return ResponseEntity.ok().build();
+    }
 }

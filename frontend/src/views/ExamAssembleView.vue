@@ -3,9 +3,10 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   getExam, getExamQuestions, getAllQuestions, 
-  addQuestionToExam, updateExamQuestion, removeQuestionFromExam,
-  saveAsTemplate
+  addQuestionToExam, removeQuestionFromExam,
+  saveAsTemplate, saveExamAssembly
 } from '@/api';
+import { HistoryOutlined } from '@ant-design/icons-vue';
 import { message } from 'ant-design-vue';
 import { 
   LeftOutlined, SearchOutlined, PlusCircleOutlined, 
@@ -103,19 +104,22 @@ const removeFromExam = async (qId) => {
 const saveAssembly = async () => {
   saving.value = true;
   try {
-    // Update sequences and scores
-    await Promise.all(examQuestions.value.map((eq, index) => 
-      updateExamQuestion(examId, eq.question.id, {
-        score: eq.score,
-        sequence: index + 1
-      })
-    ));
-    message.success('试卷配置已保存');
+    const questions = examQuestions.value.map((eq, index) => ({
+      questionId: eq.question.id,
+      score: eq.score,
+      sequence: index + 1
+    }));
+    await saveExamAssembly(examId, { questions });
+    message.success('试卷配置已保存，已创建版本快照');
   } catch (e) {
     message.error('保存失败');
   } finally {
     saving.value = false;
   }
+};
+
+const goToVersions = () => {
+  router.push(`/exam/${examId}/versions`);
 };
 
 // Simple Sort Actions (D&D can be complex to implement bare-bones, 
@@ -203,6 +207,9 @@ onMounted(fetchData);
           <div class="total-score-pill">
              总分: <span>{{ totalScore }}</span>
           </div>
+          <a-button @click="goToVersions">
+             <HistoryOutlined /> 版本历史
+          </a-button>
           <a-button @click="showSaveTemplate" :disabled="examQuestions.length === 0">
              <SaveFilled /> 另存为模板
           </a-button>

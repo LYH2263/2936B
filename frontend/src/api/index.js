@@ -179,4 +179,12 @@ export const createSnapshot = (data) => api.post('/snapshots', data);
 export const getReplayData = (submissionId) => api.get(`/snapshots/replay/${submissionId}`);
 export const canViewReplay = (submissionId) => api.get(`/snapshots/can-view/${submissionId}`);
 
+// Exam Versions
+export const getExamVersions = (examId) => api.get(`/exams/${examId}/versions`);
+export const getExamVersion = (examId, versionNumber) => api.get(`/exams/${examId}/versions/${versionNumber}`);
+export const createExamVersion = (examId, data) => api.post(`/exams/${examId}/versions`, data);
+export const diffExamVersions = (examId, left, right) => api.get(`/exams/${examId}/versions/diff`, { params: { left, right } });
+export const rollbackExamVersion = (examId, versionNumber) => api.post(`/exams/${examId}/versions/rollback/${versionNumber}`);
+export const saveExamAssembly = (examId, data) => api.post(`/exams/${examId}/assembly`, data);
+
 export default api;

@@ -31,8 +31,9 @@ public class ExamService {
     private final com.exam.repository.SubmissionRepository submissionRepository;
     private final com.exam.repository.SubmissionAnswerRepository submissionAnswerRepository;
     private final NotificationService notificationService;
+    private final com.exam.service.ExamVersionService examVersionService;
 
-    public ExamService(ExamRepository examRepository, QuestionRepository questionRepository, ExamQuestionRepository examQuestionRepository, UserRepository userRepository, com.exam.repository.SubmissionRepository submissionRepository, com.exam.repository.SubmissionAnswerRepository submissionAnswerRepository, NotificationService notificationService) {
+    public ExamService(ExamRepository examRepository, QuestionRepository questionRepository, ExamQuestionRepository examQuestionRepository, UserRepository userRepository, com.exam.repository.SubmissionRepository submissionRepository, com.exam.repository.SubmissionAnswerRepository submissionAnswerRepository, NotificationService notificationService, com.exam.service.ExamVersionService examVersionService) {
         this.examRepository = examRepository;
         this.questionRepository = questionRepository;
         this.examQuestionRepository = examQuestionRepository;
@@ -40,6 +41,7 @@ public class ExamService {
         this.submissionRepository = submissionRepository;
         this.submissionAnswerRepository = submissionAnswerRepository;
         this.notificationService = notificationService;
+        this.examVersionService = examVersionService;
     }
 
     public List<Exam> getAllExams() {
@@ -431,5 +433,34 @@ public class ExamService {
         }
         
         submissionRepository.save(submission);
+    }
+
+    @Transactional
+    public void saveAssembly(Long examId, List<Map<String, Object>> questions, String username) {
+        Exam exam = getExamById(examId);
+        if (!"DRAFT".equals(exam.getState())) {
+            throw new RuntimeException("只能编辑草稿状态的试卷");
+        }
+
+        List<ExamQuestion> existingQuestions = examQuestionRepository.findByExamIdOrderBySequenceAsc(examId);
+        examQuestionRepository.deleteAll(existingQuestions);
+
+        int sequence = 1;
+        for (Map<String, Object> qData : questions) {
+            Long questionId = Long.valueOf(qData.get("questionId").toString());
+            Integer score = qData.containsKey("score") ? Integer.valueOf(qData.get("score").toString()) : null;
+
+            Question question = questionRepository.findById(questionId)
+                    .orElseThrow(() -> new RuntimeException("Question not found: " + questionId));
+
+            ExamQuestion eq = new ExamQuestion();
+            eq.setExam(exam);
+            eq.setQuestion(question);
+            eq.setScore(score != null ? score : question.getDefaultScore());
+            eq.setSequence(sequence++);
+            examQuestionRepository.save(eq);
+        }
+
+        examVersionService.createVersion(examId, username, "保存组卷配置");
     }
 }
