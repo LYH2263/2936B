@@ -154,4 +154,14 @@ export const submitPkAnswer = (id, data) => api.post(`/pk/session/${id}/answer`,
 export const forfeitPk = (id) => api.post(`/pk/session/${id}/forfeit`);
 export const getPkWeeklyRanking = () => api.get('/pk/ranking/weekly');
 
+// Exam QnA
+export const getQnaThreads = (examId) => api.get(`/exams/qna/exam/${examId}`);
+export const getQnaThreadDetail = (threadId) => api.get(`/exams/qna/thread/${threadId}`);
+export const createQnaThread = (examId, data) => api.post(`/exams/qna/exam/${examId}`, data);
+export const addQnaMessage = (threadId, data) => api.post(`/exams/qna/thread/${threadId}/message`, data);
+export const markQnaAsFaq = (threadId, data) => api.post(`/exams/qna/thread/${threadId}/faq`, data);
+export const toggleQnaPin = (threadId) => api.post(`/exams/qna/thread/${threadId}/pin`);
+export const getQnaUnansweredCount = () => api.get('/exams/qna/unanswered-count');
+export const getQnaUnansweredThreads = () => api.get('/exams/qna/unanswered');
+
 export default api;

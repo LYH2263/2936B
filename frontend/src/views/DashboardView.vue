@@ -18,11 +18,12 @@ import GradeSubmissionModal from '@/components/GradeSubmissionModal.vue';
 import AutoGenerateModal from '@/components/AutoGenerateModal.vue';
 import ExamEditorModal from '@/components/ExamEditorModal.vue';
 import UserManagementView from '@/views/UserManagementView.vue';
-import { getNotifications, markNotificationRead } from '@/api';
-import { notification, Button as AButton } from 'ant-design-vue';
+import { getNotifications, markNotificationRead, getQnaUnansweredCount } from '@/api';
+import { notification, Button as AButton, Badge } from 'ant-design-vue';
 import SystemConfigView from '@/views/SystemConfigView.vue';
 import LearningAlertCenterView from '@/views/LearningAlertCenterView.vue';
-import { WarningOutlined, SecurityScanOutlined } from '@ant-design/icons-vue';
+import ExamQnaCenter from '@/views/ExamQnaCenterView.vue';
+import { WarningOutlined, SecurityScanOutlined, MessageOutlined } from '@ant-design/icons-vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -47,6 +48,8 @@ const teacherStats = ref({
   totalStudents: 0,
   recentSubmissions: []
 });
+
+const qnaUnansweredCount = ref(0);
 
 watch(() => route.query.tab, (newTab) => {
   if (newTab) {
@@ -129,9 +132,15 @@ const fetchData = async () => {
       const statsRes = await getStudentStats();
       stats.value = statsRes.data;
       checkNotifications();
-    } else if (authStore.isTeacher) {
+    } else if (authStore.isTeacher || authStore.isAdmin) {
       const tStatsRes = await getTeacherStats();
       teacherStats.value = tStatsRes.data;
+      try {
+        const qnaRes = await getQnaUnansweredCount();
+        qnaUnansweredCount.value = qnaRes.data.count || 0;
+      } catch (e) {
+        console.error('Failed to fetch QnA unanswered count', e);
+      }
     }
   } catch (e) {
     console.error('Failed to fetch data', e);
@@ -161,6 +170,11 @@ const handleMenuClick = ({ key }) => {
   }
   if (key === 'pk') {
     router.push('/pk');
+    return;
+  }
+  if (key === 'alerts-legacy') {
+    activeTab.value = 'alerts';
+    router.push({ path: '/dashboard', query: { tab: 'alerts' } });
     return;
   }
   activeTab.value = key;
@@ -367,6 +381,12 @@ const userInitial = computed(() => {
           <span>用户管理</span>
         </a-menu-item>
         <a-menu-item key="alerts" v-if="authStore.isTeacher || authStore.isAdmin">
+          <a-badge :count="qnaUnansweredCount" :offset="[-2, 2]" size="small">
+            <MessageOutlined />
+          </a-badge>
+          <span>答疑中心</span>
+        </a-menu-item>
+        <a-menu-item key="alerts-legacy" v-if="authStore.isTeacher || authStore.isAdmin">
           <WarningOutlined />
           <span>预警中心</span>
         </a-menu-item>
@@ -391,7 +411,7 @@ const userInitial = computed(() => {
               'hall': '考试大厅', 
               'scores': '我的成绩', 
               'users': '用户管理', 
-              'alerts': '预警中心',
+              'alerts': '答疑中心',
               'config': '系统设置', 
               'profile': '个人资料' 
             }[activeTab] }}
@@ -696,8 +716,13 @@ const userInitial = computed(() => {
              <UserManagementView />
           </div>
 
-          <!-- LEARNING ALERT CENTER -->
+          <!-- EXAM QNA CENTER -->
           <div v-if="activeTab === 'alerts' && (authStore.isTeacher || authStore.isAdmin)">
+             <ExamQnaCenter />
+          </div>
+
+          <!-- LEARNING ALERT CENTER -->
+          <div v-if="activeTab === 'alerts-legacy' && (authStore.isTeacher || authStore.isAdmin)">
              <LearningAlertCenterView />
           </div>
 

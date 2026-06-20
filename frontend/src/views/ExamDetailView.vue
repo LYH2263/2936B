@@ -1,23 +1,41 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getExam, getExamQuestions, canEnterExam, getQueuePosition } from '@/api';
-import { 
-  ClockCircleOutlined, CalendarOutlined, BookOutlined, 
+import {
+  getExam, getExamQuestions, canEnterExam, getQueuePosition,
+  getQnaThreads, getQnaThreadDetail, createQnaThread, addQnaMessage,
+  markQnaAsFaq, toggleQnaPin
+} from '@/api';
+import {
+  ClockCircleOutlined, CalendarOutlined, BookOutlined,
   LeftOutlined, SafetyCertificateOutlined, EyeOutlined,
   CloudOutlined, InfoCircleOutlined, UserOutlined,
-  TeamOutlined, HourglassOutlined
+  TeamOutlined, HourglassOutlined, MessageOutlined,
+  SendOutlined, PushpinOutlined, PushpinFilled,
+  StarOutlined, StarFilled
 } from '@ant-design/icons-vue';
-import { message } from 'ant-design-vue';
+import { message, Modal } from 'ant-design-vue';
+import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 const examId = route.params.id;
 const exam = ref(null);
 const loading = ref(true);
 const questions = ref([]);
 const canEnter = ref(true);
 const queuePosition = ref(null);
+
+const qnaThreads = ref([]);
+const qnaLoading = ref(false);
+const selectedThreadId = ref(null);
+const selectedThreadDetail = ref(null);
+const createThreadVisible = ref(false);
+const newThreadForm = ref({ title: '', content: '' });
+const replyContent = ref('');
+const replying = ref(false);
+const creatingThread = ref(false);
 
 const fetchData = async () => {
   try {
@@ -40,12 +58,126 @@ const fetchData = async () => {
         canEnter.value = false;
       }
     }
+    fetchQnaThreads();
   } catch (e) {
     message.error('加载考试信息失败');
     router.push('/dashboard');
   } finally {
     loading.value = false;
   }
+};
+
+const fetchQnaThreads = async () => {
+  qnaLoading.value = true;
+  try {
+    const res = await getQnaThreads(examId);
+    qnaThreads.value = res.data;
+  } catch (e) {
+    console.error('Failed to fetch QnA threads', e);
+  } finally {
+    qnaLoading.value = false;
+  }
+};
+
+const isTeacher = computed(() => authStore.isTeacher || authStore.user?.role === 'ADMIN');
+const isStudent = computed(() => authStore.user?.role === 'STUDENT');
+
+const canAskQuestion = computed(() => {
+  if (!exam.value) return false;
+  if (!isStudent.value) return false;
+  if (exam.value.state === 'DRAFT') return false;
+  const now = new Date();
+  const end = exam.value.endTime ? new Date(exam.value.endTime) : null;
+  if (end && now > end) return true;
+  return true;
+});
+
+const selectThread = async (thread) => {
+  selectedThreadId.value = thread.id;
+  try {
+    const res = await getQnaThreadDetail(thread.id);
+    selectedThreadDetail.value = res.data;
+  } catch (e) {
+    console.error('Failed to fetch thread detail', e);
+    message.error('加载详情失败');
+  }
+};
+
+const openCreateThread = () => {
+  newThreadForm.value = { title: '', content: '' };
+  createThreadVisible.value = true;
+};
+
+const submitCreateThread = async () => {
+  if (!newThreadForm.value.title.trim()) {
+    message.warning('请输入提问标题');
+    return;
+  }
+  creatingThread.value = true;
+  try {
+    await createQnaThread(examId, newThreadForm.value);
+    message.success('提问已提交，等待教师回复');
+    createThreadVisible.value = false;
+    await fetchQnaThreads();
+  } catch (e) {
+    message.error('提问提交失败');
+  } finally {
+    creatingThread.value = false;
+  }
+};
+
+const sendReply = async () => {
+  if (!replyContent.value.trim()) {
+    message.warning('请输入回复内容');
+    return;
+  }
+  replying.value = true;
+  try {
+    await addQnaMessage(selectedThreadId.value, { content: replyContent.value });
+    message.success('回复成功');
+    replyContent.value = '';
+    if (selectedThreadId.value) {
+      const thread = qnaThreads.value.find(t => t.id === selectedThreadId.value);
+      if (thread) await selectThread(thread);
+    }
+    await fetchQnaThreads();
+  } catch (e) {
+    message.error('回复失败');
+  } finally {
+    replying.value = false;
+  }
+};
+
+const handleToggleFaq = async (thread) => {
+  try {
+    await markQnaAsFaq(thread.id, { isFaq: !thread.isFaq });
+    message.success(thread.isFaq ? '已取消 FAQ 标记' : '已标记为 FAQ');
+    thread.isFaq = !thread.isFaq;
+    if (selectedThreadId.value === thread.id && selectedThreadDetail.value) {
+      selectedThreadDetail.value.isFaq = thread.isFaq;
+    }
+  } catch (e) {
+    message.error('操作失败');
+  }
+};
+
+const handleTogglePin = async (thread) => {
+  try {
+    await toggleQnaPin(thread.id);
+    message.success(thread.isPinned ? '已取消置顶' : '已置顶');
+    thread.isPinned = !thread.isPinned;
+    await fetchQnaThreads();
+    if (selectedThreadId.value === thread.id && selectedThreadDetail.value) {
+      selectedThreadDetail.value.isPinned = thread.isPinned;
+    }
+  } catch (e) {
+    message.error('操作失败');
+  }
+};
+
+const formatTime = (t) => {
+  if (!t) return '';
+  return new Date(t).toLocaleString();
 };
 
 const status = computed(() => {
@@ -164,6 +296,140 @@ const goBack = () => {
                   <li>一旦进入考试，计时器将立即启动，请注意时间。</li>
                 </ul>
               </div>
+           </a-card>
+
+           <a-card title="考试答疑" class="info-card" style="margin-top: 24px;">
+             <template #extra>
+               <a-space>
+                 <a-button
+                   v-if="canAskQuestion"
+                   type="primary"
+                   size="small"
+                   @click="openCreateThread"
+                 >
+                   <MessageOutlined /> 发起提问
+                 </a-button>
+                 <a-button size="small" @click="fetchQnaThreads">刷新</a-button>
+               </a-space>
+             </template>
+             <a-spin :spinning="qnaLoading">
+               <a-empty v-if="qnaThreads.length === 0" description="暂无答疑记录，学生可在考试前后发起提问。" />
+               <div v-else class="qna-layout">
+                 <div class="qna-list">
+                   <a-list
+                     :dataSource="qnaThreads"
+                     size="small"
+                   >
+                     <template #renderItem="{ item }">
+                       <a-list-item
+                         :class="{ 'qna-selected': selectedThreadId === item.id }"
+                         class="qna-thread-item"
+                         @click="selectThread(item)"
+                       >
+                         <div class="qna-thread-title">
+                           <PushpinFilled v-if="item.isPinned" class="pin-icon" />
+                           <StarFilled v-if="item.isFaq" class="faq-icon" />
+                           {{ item.title }}
+                           <a-tag v-if="item.isAnswered" color="success" size="small">已回复</a-tag>
+                           <a-tag v-else color="warning" size="small">待回复</a-tag>
+                         </div>
+                         <div class="qna-thread-meta">
+                           <span v-if="item.student">
+                             <UserOutlined /> {{ item.student.fullName || item.student.username }}
+                           </span>
+                           <span class="divider">·</span>
+                           <span>{{ formatTime(item.createdAt) }}</span>
+                           <template v-if="isTeacher">
+                             <span class="divider">·</span>
+                             <a-button
+                               size="small"
+                               type="link"
+                               @click.stop="handleTogglePin(item)"
+                             >
+                               <PushpinOutlined v-if="!item.isPinned" />
+                               <PushpinFilled v-else />
+                               {{ item.isPinned ? '取消置顶' : '置顶' }}
+                             </a-button>
+                             <a-button
+                               size="small"
+                               type="link"
+                               @click.stop="handleToggleFaq(item)"
+                             >
+                               <StarOutlined v-if="!item.isFaq" />
+                               <StarFilled v-else />
+                               {{ item.isFaq ? '取消FAQ' : '设为FAQ' }}
+                             </a-button>
+                           </template>
+                         </div>
+                       </a-list-item>
+                     </template>
+                   </a-list>
+                 </div>
+                 <div class="qna-detail">
+                   <div v-if="selectedThreadDetail" class="qna-detail-inner">
+                     <div class="qna-detail-header">
+                       <h4>
+                         <PushpinFilled v-if="selectedThreadDetail.isPinned" class="pin-icon" />
+                         <StarFilled v-if="selectedThreadDetail.isFaq" class="faq-icon" />
+                         {{ selectedThreadDetail.title }}
+                       </h4>
+                       <div class="qna-detail-meta">
+                         <a-tag color="blue">
+                           {{ selectedThreadDetail.student?.fullName || selectedThreadDetail.student?.username }}
+                         </a-tag>
+                         <a-tag v-if="selectedThreadDetail.isAnswered" color="success">已回复</a-tag>
+                         <a-tag v-else color="warning">待回复</a-tag>
+                         <span class="time">{{ formatTime(selectedThreadDetail.createdAt) }}</span>
+                       </div>
+                     </div>
+                     <div class="qna-messages">
+                       <div
+                         v-for="msg in selectedThreadDetail.messages"
+                         :key="msg.id"
+                         :class="['qna-message', msg.senderRole === 'STUDENT' ? 'msg-student' : 'msg-teacher']"
+                       >
+                         <div class="qna-msg-avatar">
+                           <a-avatar :style="{ backgroundColor: msg.senderRole === 'STUDENT' ? '#1890ff' : '#52c41a' }">
+                             {{ msg.sender?.fullName?.[0] || msg.sender?.username?.[0] || 'U' }}
+                           </a-avatar>
+                         </div>
+                         <div class="qna-msg-body">
+                           <div class="qna-msg-header">
+                             <span class="qna-msg-sender">
+                               {{ msg.sender?.fullName || msg.sender?.username }}
+                               <a-tag size="small" :color="msg.senderRole === 'STUDENT' ? 'blue' : 'green'">
+                                 {{ msg.senderRole === 'STUDENT' ? '学生' : '教师' }}
+                               </a-tag>
+                             </span>
+                             <span class="qna-msg-time">{{ formatTime(msg.createdAt) }}</span>
+                           </div>
+                           <div class="qna-msg-content" v-html="msg.content"></div>
+                         </div>
+                       </div>
+                     </div>
+                     <div v-if="(isTeacher && selectedThreadDetail.student) || (isStudent && selectedThreadDetail.student?.id === authStore.user?.id)" class="qna-reply-box">
+                       <a-textarea
+                         v-model:value="replyContent"
+                         :rows="3"
+                         :placeholder="isTeacher ? '输入回复内容...' : '输入追问内容...'"
+                         show-count
+                         :maxlength="2000"
+                       />
+                       <div class="qna-reply-actions">
+                         <a-button
+                           type="primary"
+                           :loading="replying"
+                           @click="sendReply"
+                         >
+                           <SendOutlined /> {{ isTeacher ? '发送回复' : '发送追问' }}
+                         </a-button>
+                       </div>
+                     </div>
+                   </div>
+                   <a-empty v-else description="点击左侧查看提问详情" />
+                 </div>
+               </div>
+             </a-spin>
            </a-card>
         </a-col>
         <a-col :span="8">
@@ -297,6 +563,35 @@ const goBack = () => {
     <div v-else class="loading-state">
        <a-spin size="large" />
     </div>
+
+    <a-modal
+      v-model:open="createThreadVisible"
+      title="发起提问"
+      :confirm-loading="creatingThread"
+      @ok="submitCreateThread"
+      ok-text="提交提问"
+      cancel-text="取消"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="提问标题" required>
+          <a-input
+            v-model:value="newThreadForm.title"
+            placeholder="请输入简短的问题标题"
+            :maxlength="100"
+            show-count
+          />
+        </a-form-item>
+        <a-form-item label="问题详情">
+          <a-textarea
+            v-model:value="newThreadForm.content"
+            :rows="6"
+            placeholder="请详细描述您的问题，支持简单 HTML 格式"
+            :maxlength="2000"
+            show-count
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -455,5 +750,145 @@ const goBack = () => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.qna-layout {
+  display: flex;
+  gap: 16px;
+  min-height: 400px;
+}
+.qna-list {
+  width: 320px;
+  flex-shrink: 0;
+  border-right: 1px solid #f0f0f0;
+  padding-right: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+.qna-detail {
+  flex: 1;
+  min-width: 0;
+}
+.qna-detail-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.qna-thread-item {
+  cursor: pointer;
+  padding: 10px 12px !important;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.qna-thread-item:hover {
+  background: #f5f5f5;
+}
+.qna-selected {
+  background: #e6f7ff !important;
+  border-left: 3px solid #1890ff;
+}
+.qna-thread-title {
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pin-icon {
+  color: #f5222d;
+}
+.faq-icon {
+  color: #faad14;
+}
+.qna-thread-meta {
+  font-size: 12px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.qna-thread-meta .divider {
+  margin: 0 2px;
+}
+.qna-detail-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 12px;
+}
+.qna-detail-header h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.qna-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.qna-detail-meta .time {
+  font-size: 12px;
+  color: #999;
+  margin-left: auto;
+}
+.qna-messages {
+  flex: 1;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 8px;
+  background: #fafafa;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.qna-message {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.qna-msg-avatar {
+  flex-shrink: 0;
+}
+.qna-msg-body {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.msg-teacher .qna-msg-body {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+}
+.qna-msg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.qna-msg-sender {
+  font-weight: 500;
+  font-size: 13px;
+}
+.qna-msg-time {
+  font-size: 12px;
+  color: #999;
+}
+.qna-msg-content {
+  line-height: 1.6;
+  color: #333;
+  font-size: 14px;
+}
+.qna-reply-box {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+}
+.qna-reply-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
