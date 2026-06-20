@@ -9,4 +9,6 @@ public interface ExamQuestionRepository extends JpaRepository<ExamQuestion, Long
 
     @org.springframework.data.jpa.repository.Query("SELECT SUM(eq.score) FROM ExamQuestion eq WHERE eq.exam.id = :examId")
     Integer sumScoreByExamId(@org.springframework.data.repository.query.Param("examId") Long examId);
+
+    ExamQuestion findByExamIdAndQuestionId(Long examId, Long questionId);
 }

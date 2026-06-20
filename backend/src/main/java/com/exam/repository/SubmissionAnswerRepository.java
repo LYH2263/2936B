@@ -54,4 +54,84 @@ public interface SubmissionAnswerRepository extends JpaRepository<SubmissionAnsw
     List<SubmissionAnswer> findByStudentAndKnowledgePoint(
             @Param("studentId") Long studentId,
             @Param("knowledgePoint") String knowledgePoint);
+
+    @Query("SELECT new com.exam.dto.GradingQueueItemDTO(sa.id, s.id, st.id, st.fullName, " +
+            "q.id, q.content, eq.score, sa.studentAnswer, sa.score, s.endTime, sa.version) " +
+            "FROM SubmissionAnswer sa " +
+            "JOIN sa.submission s " +
+            "JOIN s.student st " +
+            "JOIN sa.question q " +
+            "JOIN ExamQuestion eq ON eq.exam = s.exam AND eq.question = q " +
+            "WHERE s.exam.id = :examId " +
+            "AND q.id = :questionId " +
+            "AND s.state = 'SUBMITTED' " +
+            "AND (sa.score IS NULL OR sa.grader IS NULL) " +
+            "ORDER BY s.endTime ASC")
+    List<com.exam.dto.GradingQueueItemDTO> findUngradedByExamAndQuestion(
+            @Param("examId") Long examId,
+            @Param("questionId") Long questionId);
+
+    @Query("SELECT new com.exam.dto.GradingQueueItemDTO(sa.id, s.id, st.id, st.fullName, " +
+            "q.id, q.content, eq.score, sa.studentAnswer, sa.score, s.endTime, sa.version) " +
+            "FROM SubmissionAnswer sa " +
+            "JOIN sa.submission s " +
+            "JOIN s.student st " +
+            "JOIN sa.question q " +
+            "JOIN ExamQuestion eq ON eq.exam = s.exam AND eq.question = q " +
+            "WHERE s.exam.id = :examId " +
+            "AND q.type IN ('SHORT') " +
+            "AND s.state = 'SUBMITTED' " +
+            "AND (sa.score IS NULL OR sa.grader IS NULL) " +
+            "ORDER BY q.id, s.endTime ASC")
+    List<com.exam.dto.GradingQueueItemDTO> findAllUngradedSubjectiveByExam(
+            @Param("examId") Long examId);
+
+    @Query("SELECT COUNT(sa.id) FROM SubmissionAnswer sa " +
+            "JOIN sa.submission s " +
+            "JOIN sa.question q " +
+            "WHERE s.exam.id = :examId " +
+            "AND q.id = :questionId " +
+            "AND s.state = 'SUBMITTED' " +
+            "AND (sa.score IS NULL OR sa.grader IS NULL)")
+    long countUngradedByExamAndQuestion(
+            @Param("examId") Long examId,
+            @Param("questionId") Long questionId);
+
+    @Query("SELECT COUNT(sa.id) FROM SubmissionAnswer sa " +
+            "JOIN sa.submission s " +
+            "JOIN sa.question q " +
+            "WHERE s.exam.creator.id = :teacherId " +
+            "AND q.type IN ('SHORT') " +
+            "AND s.state = 'SUBMITTED' " +
+            "AND (sa.score IS NULL OR sa.grader IS NULL)")
+    long countTotalUngradedForTeacher(@Param("teacherId") Long teacherId);
+
+    @Query("SELECT COUNT(sa.id) FROM SubmissionAnswer sa " +
+            "WHERE sa.grader.id = :teacherId " +
+            "AND sa.gradedAt >= :startOfDay " +
+            "AND sa.gradedAt < :endOfDay")
+    long countTodayGradedByTeacher(
+            @Param("teacherId") Long teacherId,
+            @Param("startOfDay") java.time.LocalDateTime startOfDay,
+            @Param("endOfDay") java.time.LocalDateTime endOfDay);
+
+    @Query("SELECT COALESCE(SUM(sa.gradingTimeSpent), 0) FROM SubmissionAnswer sa " +
+            "WHERE sa.grader.id = :teacherId " +
+            "AND sa.gradedAt >= :startOfDay " +
+            "AND sa.gradedAt < :endOfDay")
+    Long sumTodayGradingTimeByTeacher(
+            @Param("teacherId") Long teacherId,
+            @Param("startOfDay") java.time.LocalDateTime startOfDay,
+            @Param("endOfDay") java.time.LocalDateTime endOfDay);
+
+    @Query("SELECT DISTINCT q.id, q.content, eq.score " +
+            "FROM SubmissionAnswer sa " +
+            "JOIN sa.submission s " +
+            "JOIN sa.question q " +
+            "JOIN ExamQuestion eq ON eq.exam = s.exam AND eq.question = q " +
+            "WHERE s.exam.id = :examId " +
+            "AND q.type IN ('SHORT') " +
+            "AND s.state = 'SUBMITTED' " +
+            "ORDER BY eq.sequence ASC")
+    List<Object[]> findSubjectiveQuestionsByExam(@Param("examId") Long examId);
 }

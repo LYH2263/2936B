@@ -81,6 +81,11 @@ public class DataSeeder {
                         examQuestionRepository, submissionRepository, submissionAnswerRepository,
                         passwordEncoder, teacher1);
             }
+
+            // 4. Seed Grading Workbench Acceptance Test Data
+            seedGradingWorkbenchData(userRepository, examRepository, questionRepository,
+                    examQuestionRepository, submissionRepository, submissionAnswerRepository,
+                    passwordEncoder, teacher1);
         };
     }
 
@@ -420,5 +425,126 @@ public class DataSeeder {
         userRepo.save(absentStudent);
 
         System.out.println("Alert Acceptance Data Seeded! 已创建学生「困难生小明(2024999)」两次考试低于及格线 + 知识点「一元二次方程」低于40%；学生「长期缺考小华(2024998)」注册100天未参加考试。密码均为 123456。");
+    }
+
+    private void seedGradingWorkbenchData(UserRepository userRepo, ExamRepository examRepo,
+                                          QuestionRepository qRepo, ExamQuestionRepository eqRepo,
+                                          SubmissionRepository subRepo, SubmissionAnswerRepository saRepo,
+                                          PasswordEncoder encoder, User teacher) {
+        String gradingExamTitle = "期末模拟考试（简答题专练）";
+        if (examRepo.findAll().stream().anyMatch(e -> gradingExamTitle.equals(e.getTitle()))) {
+            return;
+        }
+
+        System.out.println("Seeding Grading Workbench Acceptance Test Data...");
+
+        Exam gradingExam = new Exam();
+        gradingExam.setTitle(gradingExamTitle);
+        gradingExam.setDescription("本试卷包含5道简答题，用于测试批量批改工作台功能。");
+        gradingExam.setCourse("综合练习");
+        gradingExam.setDuration(60);
+        gradingExam.setState("PUBLISHED");
+        gradingExam.setCreator(teacher);
+        gradingExam.setStartTime(LocalDateTime.now().minusDays(2));
+        gradingExam.setEndTime(LocalDateTime.now().plusDays(5));
+        gradingExam = examRepo.save(gradingExam);
+
+        List<Question> shortQuestions = new ArrayList<>();
+        String[] qContents = {
+            "请简述数据库事务的ACID特性及其含义。",
+            "什么是RESTful API？请列举其主要特点。",
+            "请解释面向对象编程中的多态概念，并举例说明。",
+            "简述HTTP与HTTPS的主要区别。",
+            "请描述你对微服务架构的理解，以及它与单体架构的优缺点对比。"
+        };
+        String[] rubrics = {
+            "评分标准：\n1. 完整说出ACID四个字母含义（2分）\n2. 每个特性解释清晰准确（各1分，共4分）\n3. 能举出实际例子说明（2分）\n4. 表述逻辑清晰（2分）",
+            "评分标准：\n1. 正确定义RESTful API（2分）\n2. 说出3个以上主要特点（每个1分，共5分）\n3. 理解HTTP方法的语义（3分）",
+            "评分标准：\n1. 正确定义多态（2分）\n2. 区分编译时多态和运行时多态（3分）\n3. 给出Java代码示例（3分）\n4. 说明多态的好处（2分）",
+            "评分标准：\n1. 说出HTTPS = HTTP + SSL/TLS（2分）\n2. 列出3个以上区别（每个2分，共6分）\n3. 说明端口号差异（2分）",
+            "评分标准：\n1. 正确定义微服务（2分）\n2. 说出微服务的3个优点（3分）\n3. 说出微服务的3个缺点（3分）\n4. 与单体架构对比清晰（2分）"
+        };
+
+        for (int i = 0; i < qContents.length; i++) {
+            Question q = new Question();
+            q.setCreator(teacher);
+            q.setType("SHORT");
+            q.setContent(qContents[i]);
+            q.setAnswer("参考课堂笔记");
+            q.setAnalysis(rubrics[i]);
+            q.setDefaultScore(10);
+            q.setSubject("计算机");
+            q.setKnowledgePoint("简答题" + (i + 1));
+            q.setDifficulty(3);
+            shortQuestions.add(qRepo.save(q));
+        }
+
+        for (int i = 0; i < shortQuestions.size(); i++) {
+            ExamQuestion eq = new ExamQuestion();
+            eq.setExam(gradingExam);
+            eq.setQuestion(shortQuestions.get(i));
+            eq.setScore(10);
+            eq.setSequence(i + 1);
+            eqRepo.save(eq);
+        }
+
+        String[] studentNames = {
+            "张三", "李四", "王五", "赵六", "钱七",
+            "孙八", "周九", "吴十", "郑十一", "王十二",
+            "冯十三", "陈十四", "褚十五", "卫十六", "蒋十七",
+            "沈十八", "韩十九", "杨二十", "朱廿一", "秦廿二"
+        };
+
+        String[][] sampleAnswers = {
+            {
+                "ACID是原子性(Atomicity)、一致性(Consistency)、隔离性(Isolation)、持久性(Durability)的缩写。原子性指事务是不可分割的工作单位；一致性指事务必须使数据库从一个一致性状态变到另一个一致性状态；隔离性指多个事务并发执行时互不干扰；持久性指事务一旦提交，对数据的改变就是永久性的。",
+                "RESTful API是一种基于REST架构风格的应用程序接口。主要特点包括：1.使用HTTP方法表达操作语义（GET查询、POST创建、PUT更新、DELETE删除）；2.无状态，每个请求都包含所有必要信息；3.资源通过URI标识；4.支持多种数据格式，常用JSON；5.可缓存性。",
+                "多态是面向对象编程的三大特性之一，指同一个方法调用可以根据对象的不同而有不同的行为。多态分为编译时多态（方法重载）和运行时多态（方法重写）。例如，父类Animal有一个eat()方法，子类Dog和Cat都重写了这个方法，当用Animal类型的变量引用不同子类对象时，调用eat()会表现出不同的行为。",
+                "HTTP和HTTPS的主要区别有：1.HTTPS比HTTP多了SSL/TLS加密层；2.HTTP默认端口80，HTTPS默认端口443；3.HTTPS需要CA证书，有一定成本；4.HTTPS更安全，能防止数据被窃听和篡改；5.HTTPS会稍微影响加载速度，但现在可以忽略不计；6.HTTPS对SEO更友好。",
+                "微服务架构是将一个大型应用拆分为多个小型、独立的服务，每个服务运行在自己的进程中，通过轻量级机制通信。优点：独立部署、技术栈灵活、易于扩展、故障隔离、团队自治。缺点：运维复杂度高、分布式事务困难、服务间调用延迟、测试难度大。单体架构则相反，开发简单部署方便，但扩展性差、技术栈固定、单点故障影响大。"
+            },
+            {
+                "ACID就是四个特性：原子性、一致性、隔离性、持久性。具体意思我记不太清了，大概就是事务要保证数据的正确性吧。",
+                "RESTful API是一种API设计风格，用HTTP的方法来做不同的操作。好像还有资源的概念，用URL表示资源。",
+                "多态就是同一个方法有不同的实现。比如子类可以重写父类的方法。具体的我也不太会解释。",
+                "HTTPS比HTTP安全，因为加了个S，应该是加密的意思。别的区别我不太清楚。",
+                "微服务就是把系统拆成小服务，每个服务单独部署。比单体架构灵活，但是好像更复杂。"
+            }
+        };
+
+        for (int i = 0; i < 20; i++) {
+            final int studentIdx = i;
+            User student = userRepo.findByUsername("2024" + String.format("%03d", 100 + i)).orElseGet(() -> {
+                User u = new User();
+                u.setUsername("2024" + String.format("%03d", 100 + studentIdx));
+                u.setPassword(encoder.encode("123456"));
+                u.setRole("STUDENT");
+                u.setFullName(studentNames[studentIdx]);
+                u.setClazz("批改测试班");
+                u.setCreatedAt(LocalDateTime.now().minusDays(30));
+                return userRepo.save(u);
+            });
+
+            Submission sub = new Submission();
+            sub.setExam(gradingExam);
+            sub.setStudent(student);
+            sub.setStartTime(LocalDateTime.now().minusDays(1).plusHours(i / 4));
+            sub.setEndTime(LocalDateTime.now().minusDays(1).plusHours(i / 4).plusMinutes(45));
+            sub.setState("SUBMITTED");
+            sub.setScore(0);
+            sub = subRepo.save(sub);
+
+            int answerQuality = i < 10 ? 0 : 1;
+            for (int qIdx = 0; qIdx < shortQuestions.size(); qIdx++) {
+                SubmissionAnswer sa = new SubmissionAnswer();
+                sa.setSubmission(sub);
+                sa.setQuestion(shortQuestions.get(qIdx));
+                sa.setStudentAnswer(sampleAnswers[answerQuality][qIdx]);
+                sa.setScore(null);
+                saRepo.save(sa);
+            }
+        }
+
+        System.out.println("Grading Workbench Test Data Seeded! 已创建「期末模拟考试（简答题专练）」考试，包含5道简答题、20名学生答卷。登录教师账号 1001/123456 进入批改工作台体验。");
     }
 }

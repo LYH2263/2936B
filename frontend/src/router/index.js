@@ -16,6 +16,7 @@ import LearningAlertCenterView from '@/views/LearningAlertCenterView.vue'
 import PkLobbyView from '@/views/PkLobbyView.vue'
 import PkBattleView from '@/views/PkBattleView.vue'
 import PkRankingView from '@/views/PkRankingView.vue'
+import GradingWorkbenchView from '@/views/GradingWorkbenchView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -118,6 +119,12 @@ const router = createRouter({
             name: 'pk-ranking',
             component: PkRankingView,
             meta: { requiresAuth: true }
+        },
+        {
+            path: '/grading-workbench',
+            name: 'grading-workbench',
+            component: GradingWorkbenchView,
+            meta: { requiresAuth: true, requiresTeacher: true }
         }
     ]
 })

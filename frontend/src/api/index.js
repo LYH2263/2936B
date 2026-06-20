@@ -164,4 +164,13 @@ export const toggleQnaPin = (threadId) => api.post(`/exams/qna/thread/${threadId
 export const getQnaUnansweredCount = () => api.get('/exams/qna/unanswered-count');
 export const getQnaUnansweredThreads = () => api.get('/exams/qna/unanswered');
 
+// Grading Workbench
+export const getGradingExams = () => api.get('/grading-workbench/exams');
+export const getGradingQuestions = (examId) => api.get(`/grading-workbench/exam/${examId}/questions`);
+export const getGradingQueue = (params) => api.get('/grading-workbench/queue', { params });
+export const getGradingQuestionDetail = (questionId) => api.get(`/grading-workbench/question/${questionId}`);
+export const updateRubric = (questionId, rubric) => api.put(`/grading-workbench/question/${questionId}/rubric`, { rubric });
+export const batchGrade = (items) => api.post('/grading-workbench/batch-grade', items);
+export const getGradingStats = () => api.get('/grading-workbench/stats');
+
 export default api;

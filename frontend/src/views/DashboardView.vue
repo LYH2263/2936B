@@ -9,7 +9,8 @@ import {
   UserOutlined, LogoutOutlined, PlusOutlined, UnorderedListOutlined, 
   BankOutlined, ProfileOutlined, BookOutlined, TeamOutlined, FileTextOutlined,
   SettingOutlined, DashboardOutlined, TrophyOutlined, HourglassOutlined, ReadOutlined,
-  SearchOutlined, BarsOutlined, EditOutlined, AppstoreOutlined, FireOutlined
+  SearchOutlined, BarsOutlined, EditOutlined, AppstoreOutlined, FireOutlined,
+  CheckSquareOutlined
 } from '@ant-design/icons-vue';
 import CreateExamModal from '@/components/CreateExamModal.vue';
 import AddQuestionModal from '@/components/AddQuestionModal.vue';
@@ -170,6 +171,10 @@ const handleMenuClick = ({ key }) => {
   }
   if (key === 'pk') {
     router.push('/pk');
+    return;
+  }
+  if (key === 'grading-workbench') {
+    router.push('/grading-workbench');
     return;
   }
   if (key === 'alerts-legacy') {
@@ -359,6 +364,10 @@ const userInitial = computed(() => {
         <a-menu-item key="templates" v-if="authStore.isTeacher || authStore.isAdmin">
           <AppstoreOutlined />
           <span>模板库</span>
+        </a-menu-item>
+        <a-menu-item key="grading-workbench" v-if="authStore.isTeacher || authStore.isAdmin">
+          <CheckSquareOutlined />
+          <span>批改工作台</span>
         </a-menu-item>
         <a-menu-item key="hall">
           <BookOutlined />

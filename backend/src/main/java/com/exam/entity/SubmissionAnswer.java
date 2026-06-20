@@ -2,6 +2,7 @@ package com.exam.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -14,6 +15,9 @@ public class SubmissionAnswer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
 
     @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne
@@ -29,5 +33,13 @@ public class SubmissionAnswer {
 
     private Integer score; // Score awarded for this specific answer
 
-    private String teacherComment; 
+    private String teacherComment;
+
+    @ManyToOne
+    @JoinColumn(name = "grader_id")
+    private User grader;
+
+    private LocalDateTime gradedAt;
+
+    private Integer gradingTimeSpent; // in seconds
 }
