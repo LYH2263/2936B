@@ -43,8 +43,9 @@ public class Exam {
     private Boolean shuffleOptions = false;
 
     // Targeting
-    private String targetAudience = "ALL"; // ALL, CUSTOM
+    private String targetAudience = "ALL"; // ALL, CUSTOM, CLASS
     private String targetIds; // Comma separated user IDs or usernames
+    private String targetClassIds; // Comma separated class IDs for CLASS target audience
 
     // Reservation Mode
     private Boolean reservationEnabled = false;

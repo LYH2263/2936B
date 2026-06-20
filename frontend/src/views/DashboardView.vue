@@ -19,11 +19,12 @@ import GradeSubmissionModal from '@/components/GradeSubmissionModal.vue';
 import AutoGenerateModal from '@/components/AutoGenerateModal.vue';
 import ExamEditorModal from '@/components/ExamEditorModal.vue';
 import UserManagementView from '@/views/UserManagementView.vue';
-import { getNotifications, markNotificationRead, getQnaUnansweredCount } from '@/api';
+import { getNotifications, markNotificationRead, getQnaUnansweredCount, getMyClazzes } from '@/api';
 import { notification, Button as AButton, Badge } from 'ant-design-vue';
 import SystemConfigView from '@/views/SystemConfigView.vue';
 import LearningAlertCenterView from '@/views/LearningAlertCenterView.vue';
 import ExamQnaCenter from '@/views/ExamQnaCenterView.vue';
+import ClazzManagementView from '@/views/ClazzManagementView.vue';
 import { WarningOutlined, SecurityScanOutlined, MessageOutlined } from '@ant-design/icons-vue';
 
 const router = useRouter();
@@ -51,6 +52,7 @@ const teacherStats = ref({
 });
 
 const qnaUnansweredCount = ref(0);
+const myClazzes = ref([]);
 
 watch(() => route.query.tab, (newTab) => {
   if (newTab) {
@@ -133,6 +135,12 @@ const fetchData = async () => {
       const statsRes = await getStudentStats();
       stats.value = statsRes.data;
       checkNotifications();
+      try {
+        const clazzRes = await getMyClazzes();
+        myClazzes.value = clazzRes.data;
+      } catch (e) {
+        console.error('Failed to fetch my classes', e);
+      }
     } else if (authStore.isTeacher || authStore.isAdmin) {
       const tStatsRes = await getTeacherStats();
       teacherStats.value = tStatsRes.data;
@@ -180,6 +188,11 @@ const handleMenuClick = ({ key }) => {
   if (key === 'alerts-legacy') {
     activeTab.value = 'alerts';
     router.push({ path: '/dashboard', query: { tab: 'alerts' } });
+    return;
+  }
+  if (key === 'classes') {
+    activeTab.value = 'classes';
+    router.push({ path: '/dashboard', query: { tab: 'classes' } });
     return;
   }
   activeTab.value = key;
@@ -385,8 +398,12 @@ const userInitial = computed(() => {
           <EditOutlined />
           <span>错题本</span>
         </a-menu-item>
-        <a-menu-item key="users" v-if="authStore.isTeacher || authStore.isAdmin">
+        <a-menu-item key="classes" v-if="authStore.isTeacher || authStore.isAdmin">
           <TeamOutlined />
+          <span>班级管理</span>
+        </a-menu-item>
+        <a-menu-item key="users" v-if="authStore.isTeacher || authStore.isAdmin">
+          <UserOutlined />
           <span>用户管理</span>
         </a-menu-item>
         <a-menu-item key="alerts" v-if="authStore.isTeacher || authStore.isAdmin">
@@ -419,6 +436,7 @@ const userInitial = computed(() => {
               'manage': '试卷管理', 
               'hall': '考试大厅', 
               'scores': '我的成绩', 
+              'classes': '班级管理',
               'users': '用户管理', 
               'alerts': '答疑中心',
               'config': '系统设置', 
@@ -720,6 +738,11 @@ const userInitial = computed(() => {
              </a-table>
           </div>
 
+          <!-- CLASS MANAGEMENT -->
+          <div v-if="activeTab === 'classes'">
+             <ClazzManagementView />
+          </div>
+
           <!-- USER MANAGEMENT -->
           <div v-if="activeTab === 'users'">
              <UserManagementView />
@@ -764,7 +787,14 @@ const userInitial = computed(() => {
                          {{ { 'ADMIN': '管理员', 'TEACHER': '教师', 'STUDENT': '学生' }[authStore.user?.role] || authStore.user?.role }}
                       </a-tag>
                    </a-descriptions-item>
-                   <a-descriptions-item label="所在班级" v-if="authStore.user?.role === 'STUDENT'">{{ authStore.user?.clazz || '未分配' }}</a-descriptions-item>
+                   <a-descriptions-item label="所在班级" v-if="authStore.user?.role === 'STUDENT'">
+                     <template v-if="myClazzes.length > 0">
+                       <a-tag v-for="c in myClazzes" :key="c.id" color="blue" style="margin-right: 8px;">
+                         {{ c.name }} ({{ c.grade }})
+                       </a-tag>
+                     </template>
+                     <span v-else>{{ authStore.user?.clazz || '未分配' }}</span>
+                   </a-descriptions-item>
                    <a-descriptions-item label="注册时间">
                       {{ authStore.user?.createdAt ? new Date(authStore.user.createdAt).toLocaleDateString() : 'N/A' }}
                    </a-descriptions-item>

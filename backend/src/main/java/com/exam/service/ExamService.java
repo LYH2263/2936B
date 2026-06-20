@@ -32,8 +32,9 @@ public class ExamService {
     private final com.exam.repository.SubmissionAnswerRepository submissionAnswerRepository;
     private final NotificationService notificationService;
     private final com.exam.service.ExamVersionService examVersionService;
+    private final com.exam.repository.ClazzStudentRepository clazzStudentRepository;
 
-    public ExamService(ExamRepository examRepository, QuestionRepository questionRepository, ExamQuestionRepository examQuestionRepository, UserRepository userRepository, com.exam.repository.SubmissionRepository submissionRepository, com.exam.repository.SubmissionAnswerRepository submissionAnswerRepository, NotificationService notificationService, com.exam.service.ExamVersionService examVersionService) {
+    public ExamService(ExamRepository examRepository, QuestionRepository questionRepository, ExamQuestionRepository examQuestionRepository, UserRepository userRepository, com.exam.repository.SubmissionRepository submissionRepository, com.exam.repository.SubmissionAnswerRepository submissionAnswerRepository, NotificationService notificationService, com.exam.service.ExamVersionService examVersionService, com.exam.repository.ClazzStudentRepository clazzStudentRepository) {
         this.examRepository = examRepository;
         this.questionRepository = questionRepository;
         this.examQuestionRepository = examQuestionRepository;
@@ -42,6 +43,7 @@ public class ExamService {
         this.submissionAnswerRepository = submissionAnswerRepository;
         this.notificationService = notificationService;
         this.examVersionService = examVersionService;
+        this.clazzStudentRepository = clazzStudentRepository;
     }
 
     public List<Exam> getAllExams() {
@@ -167,6 +169,7 @@ public class ExamService {
         // Update Targeting
         if (details.getTargetAudience() != null) exam.setTargetAudience(details.getTargetAudience());
         if (details.getTargetIds() != null) exam.setTargetIds(details.getTargetIds());
+        if (details.getTargetClassIds() != null) exam.setTargetClassIds(details.getTargetClassIds());
 
         // Update Reservation Settings
         if (details.getReservationEnabled() != null) exam.setReservationEnabled(details.getReservationEnabled());
@@ -186,6 +189,22 @@ public class ExamService {
                     .collect(java.util.stream.Collectors.toList());
             for (User s : students) {
                 notificationService.createNotification(s, "新考试发布", "您有一场新考试: " + exam.getTitle(), "EXAM_PUBLISHED", exam.getId());
+            }
+        } else if ("CLASS".equals(exam.getTargetAudience()) && exam.getTargetClassIds() != null) {
+            String[] classIds = exam.getTargetClassIds().split(",");
+            java.util.Set<User> notifiedStudents = new java.util.HashSet<>();
+            for (String classId : classIds) {
+                String trimmedId = classId.trim();
+                try {
+                    Long clazzId = Long.parseLong(trimmedId);
+                    List<User> students = clazzStudentRepository.findStudentsByClazzId(clazzId);
+                    for (User s : students) {
+                        if (!notifiedStudents.contains(s)) {
+                            notifiedStudents.add(s);
+                            notificationService.createNotification(s, "新考试发布", "您有一场新考试: " + exam.getTitle(), "EXAM_PUBLISHED", exam.getId());
+                        }
+                    }
+                } catch (NumberFormatException ignored) {}
             }
         } else if (exam.getTargetIds() != null) {
             String[] ids = exam.getTargetIds().split(",");
@@ -234,6 +253,20 @@ public class ExamService {
         int totalParticipants = 0;
         if ("ALL".equals(exam.getTargetAudience())) {
             totalParticipants = (int) userRepository.countByRole("STUDENT");
+        } else if ("CLASS".equals(exam.getTargetAudience()) && exam.getTargetClassIds() != null) {
+            java.util.Set<Long> studentIds = new java.util.HashSet<>();
+            String[] classIds = exam.getTargetClassIds().split(",");
+            for (String classId : classIds) {
+                String trimmedId = classId.trim();
+                try {
+                    Long clazzId = Long.parseLong(trimmedId);
+                    List<User> students = clazzStudentRepository.findStudentsByClazzId(clazzId);
+                    for (User s : students) {
+                        studentIds.add(s.getId());
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+            totalParticipants = studentIds.size();
         } else if (exam.getTargetIds() != null) {
             totalParticipants = exam.getTargetIds().split(",").length;
         }

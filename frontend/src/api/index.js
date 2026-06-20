@@ -187,4 +187,21 @@ export const diffExamVersions = (examId, left, right) => api.get(`/exams/${examI
 export const rollbackExamVersion = (examId, versionNumber) => api.post(`/exams/${examId}/versions/rollback/${versionNumber}`);
 export const saveExamAssembly = (examId, data) => api.post(`/exams/${examId}/assembly`, data);
 
+// Class Management
+export const getClazzes = (params) => api.get('/clazzes', { params });
+export const getAllClazzes = () => api.get('/clazzes/all');
+export const getClazz = (id) => api.get(`/clazzes/${id}`);
+export const getClazzStudents = (id) => api.get(`/clazzes/${id}/students`);
+export const createClazz = (data) => api.post('/clazzes', data);
+export const updateClazz = (id, data) => api.put(`/clazzes/${id}`, data);
+export const deleteClazz = (id) => api.delete(`/clazzes/${id}`);
+export const addStudentToClazz = (id, studentId) => api.post(`/clazzes/${id}/students/${studentId}`);
+export const addStudentsToClazz = (id, studentIds) => api.post(`/clazzes/${id}/students`, { studentIds });
+export const removeStudentFromClazz = (id, studentId) => api.delete(`/clazzes/${id}/students/${studentId}`);
+export const importClazzStudents = (id, formData) => api.post(`/clazzes/${id}/import`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+});
+export const getMyClazzes = () => api.get('/clazzes/my');
+export const getStudentClazzes = (studentId) => api.get(`/clazzes/student/${studentId}`);
+
 export default api;

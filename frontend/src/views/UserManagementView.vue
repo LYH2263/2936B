@@ -1,6 +1,6 @@
 <script setup>
 import { ref, shallowRef, onMounted, h } from 'vue';
-import { getUsers, createUser, updateUser, deleteUser, importUsers, exportUsers, resetUserPassword } from '@/api';
+import { getUsers, createUser, updateUser, deleteUser, importUsers, exportUsers, resetUserPassword, getAllClazzes } from '@/api';
 import { useAuthStore } from '@/stores/auth';
 import { message, Modal } from 'ant-design-vue';
 import { 
@@ -22,10 +22,21 @@ const pagination = ref({
   total: 0
 });
 
+const clazzList = ref([]);
+
+const fetchClazzes = async () => {
+  try {
+    const res = await getAllClazzes();
+    clazzList.value = res.data;
+  } catch (e) {
+    console.error('Failed to fetch classes', e);
+  }
+};
+
 const searchForm = ref({
   keyword: '',
   role: undefined,
-  clazz: ''
+  clazz: undefined
 });
 
 const modalVisible = ref(false);
@@ -191,6 +202,7 @@ const handleImport = async (options) => {
 
 onMounted(() => {
   fetchUsers();
+  fetchClazzes();
 });
 
 const columns = [
@@ -228,7 +240,11 @@ const columns = [
             </a-select>
           </a-form-item>
           <a-form-item label="班级">
-            <a-input v-model:value="searchForm.clazz" placeholder="班级名称" @pressEnter="handleSearch" />
+            <a-select v-model:value="searchForm.clazz" style="width: 150px" placeholder="全部班级" allowClear>
+              <a-select-option v-for="c in clazzList" :key="c.id" :value="String(c.id)">
+                {{ c.name }}
+              </a-select-option>
+            </a-select>
           </a-form-item>
           <a-form-item>
             <a-button type="primary" :icon="h(SearchOutlined)" @click="handleSearch">搜索</a-button>
@@ -288,7 +304,11 @@ const columns = [
           </a-select>
         </a-form-item>
         <a-form-item label="班级" name="clazz" v-if="userForm.role === 'STUDENT'">
-          <a-input v-model:value="userForm.clazz" />
+          <a-select v-model:value="userForm.clazz" placeholder="选择班级" allowClear>
+            <a-select-option v-for="c in clazzList" :key="c.id" :value="c.name">
+              {{ c.name }}
+            </a-select-option>
+          </a-select>
         </a-form-item>
       </a-form>
     </a-modal>

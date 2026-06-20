@@ -22,27 +22,63 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final SystemConfigService systemConfigService;
+    private final com.exam.repository.ClazzStudentRepository clazzStudentRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, SystemConfigService systemConfigService) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, SystemConfigService systemConfigService, com.exam.repository.ClazzStudentRepository clazzStudentRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.systemConfigService = systemConfigService;
+        this.clazzStudentRepository = clazzStudentRepository;
     }
 
     public Page<User> searchUsers(String keyword, String role, String clazz, String currentUserRole, Pageable pageable) {
         boolean skipAdmin = currentUserRole.contains("TEACHER");
-        
-        if (keyword != null && !keyword.isEmpty()) {
-            if (skipAdmin) {
-                return userRepository.searchExcludingAdmins(keyword, pageable);
-            }
-            return userRepository.findByUsernameContainingOrFullNameContaining(keyword, keyword, pageable);
-        }
+        java.util.List<User> users;
         
         if (skipAdmin) {
-            return userRepository.findAllExcludingAdmins(pageable);
+            users = userRepository.findAll().stream()
+                    .filter(u -> !"ADMIN".equals(u.getRole()))
+                    .collect(java.util.stream.Collectors.toList());
+        } else {
+            users = userRepository.findAll();
         }
-        return userRepository.findAll(pageable);
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            final String lowerKeyword = keyword.toLowerCase();
+            users = users.stream()
+                    .filter(u -> u.getUsername().toLowerCase().contains(lowerKeyword)
+                            || (u.getFullName() != null && u.getFullName().toLowerCase().contains(lowerKeyword)))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        if (role != null && !role.isEmpty()) {
+            users = users.stream()
+                    .filter(u -> role.equals(u.getRole()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        if (clazz != null && !clazz.isEmpty()) {
+            try {
+                Long clazzId = Long.parseLong(clazz);
+                java.util.List<User> clazzStudents = clazzStudentRepository.findStudentsByClazzId(clazzId);
+                java.util.Set<Long> clazzStudentIds = clazzStudents.stream()
+                        .map(User::getId)
+                        .collect(java.util.stream.Collectors.toSet());
+                users = users.stream()
+                        .filter(u -> clazzStudentIds.contains(u.getId()))
+                        .collect(java.util.stream.Collectors.toList());
+            } catch (NumberFormatException e) {
+                users = users.stream()
+                        .filter(u -> clazz.equals(u.getClazz()))
+                        .collect(java.util.stream.Collectors.toList());
+            }
+        }
+        
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), users.size());
+        java.util.List<User> content = start >= users.size() ? new java.util.ArrayList<>() : users.subList(start, end);
+        
+        return new org.springframework.data.domain.PageImpl<>(content, pageable, users.size());
     }
 
     public List<User> getAllUsers() {

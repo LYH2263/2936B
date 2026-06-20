@@ -1,6 +1,6 @@
 <script setup>
-import { reactive, ref, onMounted, watch } from 'vue';
-import { publishExam, getSystemConfig } from '@/api';
+import { reactive, ref, onMounted, watch, computed } from 'vue';
+import { publishExam, getSystemConfig, getAllClazzes } from '@/api';
 import { message } from 'ant-design-vue';
 import { InfoCircleOutlined, SettingOutlined, SecurityScanOutlined, UsergroupAddOutlined } from '@ant-design/icons-vue';
 
@@ -27,6 +27,8 @@ const formState = reactive({
   // Targeting
   targetAudience: 'ALL',
   targetIds: '',
+  targetClassIds: '',
+  selectedClassIds: [],
   // Reservation
   reservationEnabled: false,
   maxConcurrentUsers: 50,
@@ -35,6 +37,17 @@ const formState = reactive({
   reservationEndTime: null,
   admissionTimeout: 15
 });
+
+const clazzList = ref([]);
+
+const fetchClazzes = async () => {
+  try {
+    const res = await getAllClazzes();
+    clazzList.value = res.data;
+  } catch (e) {
+    console.error('Failed to fetch classes', e);
+  }
+};
 
 onMounted(async () => {
   try {
@@ -47,15 +60,20 @@ onMounted(async () => {
       }
     }
   } catch (e) {}
+  fetchClazzes();
 });
 
 watch(() => props.open, (val) => {
   if (val && props.exam) {
+    const selectedClassIds = props.exam.targetClassIds 
+      ? props.exam.targetClassIds.split(',').map(id => parseInt(id.trim()))
+      : [];
     Object.assign(formState, {
       ...props.exam,
-      startTime: props.exam.startTime ? null : null, // Reset for picker logic
+      startTime: props.exam.startTime ? null : null,
       endTime: props.exam.endTime ? null : null,
-      tabSwitchLimit: formState.tabSwitchLimit // Retain global default if not set on exam
+      tabSwitchLimit: formState.tabSwitchLimit,
+      selectedClassIds
     });
   }
 });
@@ -65,10 +83,16 @@ const handleOk = async () => {
     const values = await formRef.value.validateFields();
     loading.value = true;
     
+    let targetClassIds = '';
+    if (formState.targetAudience === 'CLASS' && formState.selectedClassIds.length > 0) {
+      targetClassIds = formState.selectedClassIds.join(',');
+    }
+    
     const payload = {
       ...values,
       startTime: values.startTime ? values.startTime.format('YYYY-MM-DD HH:mm:ss') : null,
       endTime: values.endTime ? values.endTime.format('YYYY-MM-DD HH:mm:ss') : null,
+      targetClassIds
     };
 
     await publishExam(props.exam.id, payload);
@@ -142,8 +166,19 @@ const handleCancel = () => {
           <a-form-item label="参与对象" name="targetAudience">
             <a-radio-group v-model:value="formState.targetAudience">
               <a-radio value="ALL">全员 (所有人可见)</a-radio>
+              <a-radio value="CLASS">指定班级</a-radio>
               <a-radio value="CUSTOM">指定名单 (按用户名/ID)</a-radio>
             </a-radio-group>
+          </a-form-item>
+
+          <a-form-item v-if="formState.targetAudience === 'CLASS'" label="选择班级" name="selectedClassIds" :rules="[{ required: true, message: '请选择至少一个班级' }]">
+            <a-select 
+              v-model:value="formState.selectedClassIds" 
+              mode="multiple" 
+              placeholder="请选择班级"
+              style="width: 100%"
+              :options="clazzList.map(c => ({ label: `${c.name} (${c.grade || ''})`, value: c.id }))"
+            />
           </a-form-item>
 
           <a-form-item v-if="formState.targetAudience === 'CUSTOM'" label="名单列表" name="targetIds">

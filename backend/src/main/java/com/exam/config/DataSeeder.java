@@ -25,6 +25,8 @@ public class DataSeeder {
                                       SubmissionAnswerRepository submissionAnswerRepository,
                                       ExamTemplateRepository examTemplateRepository,
                                       ExamTemplateQuestionRepository examTemplateQuestionRepository,
+                                      ClazzRepository clazzRepository,
+                                      ClazzStudentRepository clazzStudentRepository,
                                       PasswordEncoder passwordEncoder) {
         return args -> {
             // 1. Create Users if not exist
@@ -86,6 +88,11 @@ public class DataSeeder {
             seedGradingWorkbenchData(userRepository, examRepository, questionRepository,
                     examQuestionRepository, submissionRepository, submissionAnswerRepository,
                     passwordEncoder, teacher1);
+
+            // 5. Seed Class Management Acceptance Test Data
+            seedClassManagementData(userRepository, examRepository, questionRepository,
+                    examQuestionRepository, clazzRepository, clazzStudentRepository,
+                    passwordEncoder, teacher1, teacher2);
         };
     }
 
@@ -546,5 +553,95 @@ public class DataSeeder {
         }
 
         System.out.println("Grading Workbench Test Data Seeded! 已创建「期末模拟考试（简答题专练）」考试，包含5道简答题、20名学生答卷。登录教师账号 1001/123456 进入批改工作台体验。");
+    }
+
+    private void seedClassManagementData(UserRepository userRepo, ExamRepository examRepo,
+                                          QuestionRepository qRepo, ExamQuestionRepository eqRepo,
+                                          ClazzRepository clazzRepo, ClazzStudentRepository csRepo,
+                                          PasswordEncoder encoder, User teacher1, User teacher2) {
+        String targetClassName = "软件2201班";
+        if (clazzRepo.existsByName(targetClassName)) {
+            return;
+        }
+
+        System.out.println("Seeding Class Management Acceptance Test Data...");
+
+        com.exam.entity.Clazz clazz2201 = new com.exam.entity.Clazz();
+        clazz2201.setName(targetClassName);
+        clazz2201.setGrade("2022级");
+        clazz2201.setTeacher(teacher1);
+        clazz2201 = clazzRepo.save(clazz2201);
+
+        com.exam.entity.Clazz clazz2202 = new com.exam.entity.Clazz();
+        clazz2202.setName("软件2202班");
+        clazz2202.setGrade("2022级");
+        clazz2202.setTeacher(teacher2);
+        clazz2202 = clazzRepo.save(clazz2202);
+
+        String[][] studentData = {
+            {"2022001", "张小明", "软件2201班"},
+            {"2022002", "李小红", "软件2201班"},
+            {"2022003", "王小强", "软件2201班"},
+            {"2022004", "赵小丽", "软件2201班"},
+            {"2022005", "陈小伟", "软件2201班"},
+            {"2022006", "刘小芳", "软件2202班"},
+            {"2022007", "周小军", "软件2202班"},
+            {"2022008", "吴小燕", "软件2202班"},
+        };
+
+        for (String[] data : studentData) {
+            String username = data[0];
+            String fullName = data[1];
+            String className = data[2];
+
+            User student = userRepo.findByUsername(username).orElseGet(() -> {
+                User u = new User();
+                u.setUsername(username);
+                u.setFullName(fullName);
+                u.setPassword(encoder.encode("123456"));
+                u.setRole("STUDENT");
+                u.setClazz(className);
+                u.setCreatedAt(java.time.LocalDateTime.now().minusDays(100));
+                return userRepo.save(u);
+            });
+
+            com.exam.entity.Clazz targetClazz = "软件2201班".equals(className) ? clazz2201 : clazz2202;
+
+            if (!csRepo.existsByClazzIdAndStudentId(targetClazz.getId(), student.getId())) {
+                com.exam.entity.ClazzStudent cs = new com.exam.entity.ClazzStudent();
+                cs.setClazz(targetClazz);
+                cs.setStudent(student);
+                csRepo.save(cs);
+            }
+        }
+
+        Exam classExam = new Exam();
+        classExam.setTitle("软件2201班专属单元测试");
+        classExam.setDescription("本考试仅对软件2201班学生开放。");
+        classExam.setCourse("Java程序设计");
+        classExam.setDuration(60);
+        classExam.setState("PUBLISHED");
+        classExam.setCreator(teacher1);
+        classExam.setStartTime(java.time.LocalDateTime.now());
+        classExam.setEndTime(java.time.LocalDateTime.now().plusDays(14));
+        classExam.setTargetAudience("CLASS");
+        classExam.setTargetClassIds(String.valueOf(clazz2201.getId()));
+        classExam.setCoverUrl("/covers/tech.png");
+        classExam = examRepo.save(classExam);
+
+        List<Question> classExamQuestions = new ArrayList<>();
+        classExamQuestions.add(createQuestion(qRepo, teacher1, "SINGLE", "Java中，以下哪个关键字用于定义类？", 
+            "[{\"label\":\"A\",\"text\":\"function\"},{\"label\":\"B\",\"text\":\"class\"},{\"label\":\"C\",\"text\":\"struct\"},{\"label\":\"D\",\"text\":\"type\"}]", "B", "Java使用class关键字定义类", 10, "Java基础"));
+        classExamQuestions.add(createQuestion(qRepo, teacher1, "SINGLE", "Java中，main方法的签名是？", 
+            "[{\"label\":\"A\",\"text\":\"public void main(String[] args)\"},{\"label\":\"B\",\"text\":\"public static void main(String[] args)\"},{\"label\":\"C\",\"text\":\"static void main(String args)\"},{\"label\":\"D\",\"text\":\"void main()\"}]", "B", "main方法必须是public static void", 10, "Java基础"));
+        classExamQuestions.add(createQuestion(qRepo, teacher1, "JUDGE", "Java支持多继承。", 
+            null, "FALSE", "Java只支持单继承，可以实现多个接口", 5, "面向对象"));
+
+        linkQuestionsToExam(eqRepo, classExam, classExamQuestions);
+
+        System.out.println("Class Management Test Data Seeded!");
+        System.out.println("已创建班级：软件2201班（张老师班主任，5名学生）、软件2202班（王老师班主任，3名学生）");
+        System.out.println("已创建考试：「软件2201班专属单元测试」，仅软件2201班可见");
+        System.out.println("测试账号：2022001-2022005（软件2201班），2022006-2022008（软件2202班），密码均为 123456");
     }
 }
