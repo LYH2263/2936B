@@ -1,11 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getExam, getExamQuestions } from '@/api';
+import { getExam, getExamQuestions, canEnterExam, getQueuePosition } from '@/api';
 import { 
   ClockCircleOutlined, CalendarOutlined, BookOutlined, 
   LeftOutlined, SafetyCertificateOutlined, EyeOutlined,
-  CloudOutlined, InfoCircleOutlined
+  CloudOutlined, InfoCircleOutlined, UserOutlined,
+  TeamOutlined, HourglassOutlined
 } from '@ant-design/icons-vue';
 import { message } from 'ant-design-vue';
 
@@ -15,6 +16,8 @@ const examId = route.params.id;
 const exam = ref(null);
 const loading = ref(true);
 const questions = ref([]);
+const canEnter = ref(true);
+const queuePosition = ref(null);
 
 const fetchData = async () => {
   try {
@@ -24,6 +27,19 @@ const fetchData = async () => {
     ]);
     exam.value = eRes.data;
     questions.value = qRes.data;
+
+    if (exam.value.reservationEnabled) {
+      try {
+        const [canEnterRes, queueRes] = await Promise.all([
+          canEnterExam(examId),
+          getQueuePosition(examId).catch(() => ({ data: null }))
+        ]);
+        canEnter.value = canEnterRes.data;
+        queuePosition.value = queueRes.data;
+      } catch (e) {
+        canEnter.value = false;
+      }
+    }
   } catch (e) {
     message.error('加载考试信息失败');
     router.push('/dashboard');
@@ -47,10 +63,51 @@ const canStart = computed(() => status.value.allow);
 
 const totalScore = computed(() => questions.value.reduce((sum, q) => sum + (q.score || 0), 0));
 
+const getReservationMessage = () => {
+  if (!queuePosition.value) return { title: '', desc: '' };
+  switch (queuePosition.value.status) {
+    case 'PENDING':
+      return {
+        title: `排队中 - 第 ${queuePosition.value.position} 位`,
+        desc: `预计等待约 ${queuePosition.value.estimatedWaitMinutes || '--'} 分钟，请耐心等待。`
+      };
+    case 'CONFIRMED':
+      return {
+        title: '已获得入场资格',
+        desc: '请在倒计时结束前进入考场，否则资格将作废。'
+      };
+    case 'ADMITTED':
+      return {
+        title: '已在考场内',
+        desc: '您已成功进入考试，可随时返回继续答题。'
+      };
+    case 'EXPIRED':
+      return {
+        title: '预约已超时',
+        desc: '您未在规定时间内进入考场，资格已作废。'
+      };
+    case 'CANCELLED':
+      return {
+        title: '预约已取消',
+        desc: '您已取消本次预约，可重新预约。'
+      };
+    default:
+      return { title: '', desc: '' };
+  }
+};
+
 onMounted(fetchData);
 
 const startExam = () => {
+  if (exam.value?.reservationEnabled && !canEnter.value) {
+    router.push(`/exam/${examId}/reservation`);
+    return;
+  }
   router.push(`/exam/${examId}`);
+};
+
+const goToReservation = () => {
+  router.push(`/exam/${examId}/reservation`);
 };
 
 const goBack = () => {
@@ -139,13 +196,97 @@ const goBack = () => {
                     </template>
                   </a-list-item-meta>
                 </a-list-item>
+                <a-list-item v-if="exam.reservationEnabled">
+                  <template #extra><TeamOutlined /></template>
+                  <a-list-item-meta title="预约模式">
+                    <template #description>
+                      <a-tag color="blue">限制 {{ exam.maxConcurrentUsers || 50 }} 人同时在线</a-tag>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
               </a-list>
+
+              <div v-if="exam.reservationEnabled" class="reservation-info">
+                <a-alert
+                  v-if="queuePosition"
+                  :type="canEnter ? 'success' : 'warning'"
+                  show-icon
+                  :message="getReservationMessage().title"
+                  :description="getReservationMessage().desc"
+                />
+                <a-alert
+                  v-else
+                  type="info"
+                  show-icon
+                  message="需要预约"
+                  description="本考试开启了预约模式，请先预约获得入场资格。"
+                />
+              </div>
               
               <div class="start-action">
                 <div v-if="status.text === '未开始'" class="countdown-hint">
                   <ClockCircleOutlined /> 距离开考还有 24:00:00
                 </div>
-                <a-button type="primary" block size="large" :disabled="!canStart" @click="startExam" class="primary-start-btn">
+                <template v-if="exam.reservationEnabled">
+                  <a-button
+                    v-if="!queuePosition || queuePosition.status === 'EXPIRED' || queuePosition.status === 'CANCELLED'"
+                    type="primary"
+                    block
+                    size="large"
+                    :disabled="!canStart"
+                    @click="goToReservation"
+                    class="primary-start-btn"
+                  >
+                    <HourglassOutlined /> 预约考试
+                  </a-button>
+                  <a-button
+                    v-else-if="queuePosition.status === 'PENDING'"
+                    block
+                    size="large"
+                    @click="goToReservation"
+                    class="primary-start-btn"
+                  >
+                    <HourglassOutlined /> 查看排队进度
+                  </a-button>
+                  <a-button
+                    v-else-if="queuePosition.status === 'CONFIRMED' && canEnter"
+                    type="primary"
+                    block
+                    size="large"
+                    @click="startExam"
+                    class="primary-start-btn"
+                  >
+                    {{ canStart ? '正式进入考试' : '尚未开始或已结束' }}
+                  </a-button>
+                  <a-button
+                    v-else-if="queuePosition.status === 'ADMITTED'"
+                    type="primary"
+                    block
+                    size="large"
+                    @click="startExam"
+                    class="primary-start-btn"
+                  >
+                    继续考试
+                  </a-button>
+                  <a-button
+                    v-else
+                    block
+                    size="large"
+                    disabled
+                    class="primary-start-btn"
+                  >
+                    {{ queuePosition?.status === 'EXPIRED' ? '预约已超时，请重新预约' : '暂不可进入' }}
+                  </a-button>
+                </template>
+                <a-button
+                  v-else
+                  type="primary"
+                  block
+                  size="large"
+                  :disabled="!canStart"
+                  @click="startExam"
+                  class="primary-start-btn"
+                >
                    {{ canStart ? '正式进入考试' : '尚未开始或已结束' }}
                 </a-button>
               </div>
@@ -302,6 +443,11 @@ const goBack = () => {
   font-size: 18px;
   font-weight: 600;
   border-radius: 8px;
+}
+
+.reservation-info {
+  margin-top: 20px;
+  margin-bottom: 8px;
 }
 
 .loading-state {

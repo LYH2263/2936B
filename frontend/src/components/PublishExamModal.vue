@@ -26,7 +26,14 @@ const formState = reactive({
   allowViewAnalysis: true,
   // Targeting
   targetAudience: 'ALL',
-  targetIds: ''
+  targetIds: '',
+  // Reservation
+  reservationEnabled: false,
+  maxConcurrentUsers: 50,
+  timeSlotDuration: 60,
+  reservationStartTime: null,
+  reservationEndTime: null,
+  admissionTimeout: 15
 });
 
 onMounted(async () => {
@@ -174,6 +181,62 @@ const handleCancel = () => {
               </a-form-item>
             </a-card>
           </a-space>
+        </a-tab-pane>
+
+        <a-tab-pane key="4" tab="预约模式">
+          <template #tab>
+            <span><UsergroupAddOutlined />预约模式</span>
+          </template>
+          <a-card size="small" title="高并发预约设置">
+            <a-alert
+              v-if="formState.reservationEnabled"
+              type="info"
+              show-icon
+              message="预约模式已启用"
+              description="学生需要预约才能进入考试，系统将自动管理队列和超时释放。"
+              style="margin-bottom: 16px;"
+            />
+            <a-form-item label="开启预约模式">
+              <a-switch v-model:checked="formState.reservationEnabled" />
+              <span style="margin-left: 10px; color: #999;">适用于高并发场景，限制同时在线人数</span>
+            </a-form-item>
+            
+            <template v-if="formState.reservationEnabled">
+              <a-row :gutter="16">
+                <a-col :span="12">
+                  <a-form-item label="最大同时在线人数" :rules="[{ required: true }]">
+                    <a-input-number v-model:value="formState.maxConcurrentUsers" :min="1" :max="1000" style="width: 100%" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item label="入场超时时间 (分钟)" :rules="[{ required: true }]">
+                    <a-input-number v-model:value="formState.admissionTimeout" :min="1" :max="60" style="width: 100%" />
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-row :gutter="16">
+                <a-col :span="12">
+                  <a-form-item label="时段时长 (分钟)" :rules="[{ required: true }]">
+                    <a-input-number v-model:value="formState.timeSlotDuration" :min="1" style="width: 100%" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                </a-col>
+              </a-row>
+              <a-row :gutter="16">
+                <a-col :span="12">
+                  <a-form-item label="预约开始时间">
+                    <a-date-picker show-time v-model:value="formState.reservationStartTime" style="width: 100%" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item label="预约截止时间">
+                    <a-date-picker show-time v-model:value="formState.reservationEndTime" style="width: 100%" />
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </template>
+          </a-card>
         </a-tab-pane>
       </a-tabs>
     </a-form>

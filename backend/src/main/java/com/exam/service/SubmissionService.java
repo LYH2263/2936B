@@ -20,8 +20,9 @@ public class SubmissionService {
     private final UserRepository userRepository;
     private final ExamQuestionRepository examQuestionRepository;
     private final WrongQuestionBookService wrongQuestionBookService;
+    private final ReservationQueueService reservationQueueService;
 
-    public SubmissionService(SubmissionRepository submissionRepository, SubmissionAnswerRepository submissionAnswerRepository, ExamRepository examRepository, QuestionRepository questionRepository, UserRepository userRepository, ExamQuestionRepository examQuestionRepository, WrongQuestionBookService wrongQuestionBookService) {
+    public SubmissionService(SubmissionRepository submissionRepository, SubmissionAnswerRepository submissionAnswerRepository, ExamRepository examRepository, QuestionRepository questionRepository, UserRepository userRepository, ExamQuestionRepository examQuestionRepository, WrongQuestionBookService wrongQuestionBookService, ReservationQueueService reservationQueueService) {
         this.submissionRepository = submissionRepository;
         this.submissionAnswerRepository = submissionAnswerRepository;
         this.examRepository = examRepository;
@@ -29,6 +30,7 @@ public class SubmissionService {
         this.userRepository = userRepository;
         this.examQuestionRepository = examQuestionRepository;
         this.wrongQuestionBookService = wrongQuestionBookService;
+        this.reservationQueueService = reservationQueueService;
     }
 
     @Transactional
@@ -112,6 +114,8 @@ public class SubmissionService {
         Submission savedSubmission = submissionRepository.save(submission);
         
         wrongQuestionBookService.processSubmissionWrongQuestions(savedSubmission.getId());
+        
+        reservationQueueService.completeReservation(examId, username);
         
         return savedSubmission;
     }

@@ -10,6 +10,7 @@ import ExamPublishView from '@/views/ExamPublishView.vue'
 import ExamAnalysisView from '@/views/ExamAnalysisView.vue'
 import WrongBookView from '@/views/WrongBookView.vue'
 import WrongBookPracticeView from '@/views/WrongBookPracticeView.vue'
+import ReservationQueueView from '@/views/ReservationQueueView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -75,6 +76,12 @@ const router = createRouter({
             path: '/wrong-book/practice',
             name: 'wrong-book-practice',
             component: WrongBookPracticeView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/exam/:id/reservation',
+            name: 'exam-reservation',
+            component: ReservationQueueView,
             meta: { requiresAuth: true }
         }
     ]

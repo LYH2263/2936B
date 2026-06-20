@@ -46,6 +46,14 @@ public class Exam {
     private String targetAudience = "ALL"; // ALL, CUSTOM
     private String targetIds; // Comma separated user IDs or usernames
 
+    // Reservation Mode
+    private Boolean reservationEnabled = false;
+    private Integer maxConcurrentUsers; // 每时段最大同时在线人数
+    private Integer timeSlotDuration; // 时段时长（分钟）
+    private LocalDateTime reservationStartTime; // 预约开始时间
+    private LocalDateTime reservationEndTime; // 预约结束时间
+    private Integer admissionTimeout = 15; // 入场超时时间（分钟）
+
     @ManyToOne
     @JoinColumn(name = "creator_id")
     private User creator;

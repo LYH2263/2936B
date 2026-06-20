@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getExam, getExamQuestions, submitExam, getSubmission, recordCheating } from '@/api';
+import { 
+  getExam, getExamQuestions, submitExam, getSubmission, recordCheating,
+  canEnterExam, admitStudent
+} from '@/api';
 import { useAuthStore } from '@/stores/auth';
 import { useConfigStore } from '@/stores/config';
 import { message, Modal, notification } from 'ant-design-vue';
@@ -63,6 +66,25 @@ const fetchData = async () => {
       ]);
       exam.value = examRes.data;
       questions.value = qRes.data;
+
+      if (exam.value.reservationEnabled) {
+        const canEnterRes = await canEnterExam(examId);
+        if (!canEnterRes.data) {
+          message.error('您还没有获得入场资格，请先预约');
+          router.push(`/exam/${examId}/reservation`);
+          return;
+        }
+        try {
+          await admitStudent(examId);
+        } catch (e) {
+          console.error('Admission error:', e);
+          if (e.response?.data?.message) {
+            message.error(e.response.data.message);
+          }
+          router.push(`/exam/${examId}/reservation`);
+          return;
+        }
+      }
       
       // Check for saved progress
       const saved = localStorage.getItem(`exam_progress_${examId}_${authStore.user?.id}`);

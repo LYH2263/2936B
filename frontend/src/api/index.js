@@ -85,6 +85,16 @@ export const updateExamQuestion = (examId, questionId, data) => api.put(`/exams/
 export const removeQuestionFromExam = (examId, questionId) => api.delete(`/exams/${examId}/questions/${questionId}`);
 export const recordCheating = (examId, data) => api.post(`/exams/${examId}/record-cheating`, data);
 
+// Reservations
+export const createReservation = (data) => api.post('/reservations', data);
+export const cancelReservation = (examId) => api.delete(`/reservations/${examId}`);
+export const getQueuePosition = (examId) => api.get(`/reservations/${examId}/position`);
+export const getTimeSlots = (examId) => api.get(`/reservations/${examId}/timeslots`);
+export const getQueueSnapshot = (examId) => api.get(`/reservations/${examId}/snapshot`);
+export const admitStudent = (examId) => api.post(`/reservations/${examId}/admit`);
+export const canEnterExam = (examId) => api.get(`/reservations/${examId}/can-enter`);
+export const completeReservation = (examId) => api.post(`/reservations/${examId}/complete`);
+
 export const getNotifications = () => api.get('/notifications');
 export const markNotificationRead = (id) => api.post(`/notifications/${id}/read`);
 

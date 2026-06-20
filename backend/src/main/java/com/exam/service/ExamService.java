@@ -166,6 +166,14 @@ public class ExamService {
         if (details.getTargetAudience() != null) exam.setTargetAudience(details.getTargetAudience());
         if (details.getTargetIds() != null) exam.setTargetIds(details.getTargetIds());
 
+        // Update Reservation Settings
+        if (details.getReservationEnabled() != null) exam.setReservationEnabled(details.getReservationEnabled());
+        if (details.getMaxConcurrentUsers() != null) exam.setMaxConcurrentUsers(details.getMaxConcurrentUsers());
+        if (details.getTimeSlotDuration() != null) exam.setTimeSlotDuration(details.getTimeSlotDuration());
+        if (details.getReservationStartTime() != null) exam.setReservationStartTime(details.getReservationStartTime());
+        if (details.getReservationEndTime() != null) exam.setReservationEndTime(details.getReservationEndTime());
+        if (details.getAdmissionTimeout() != null) exam.setAdmissionTimeout(details.getAdmissionTimeout());
+
         exam.setState("PUBLISHED");
         examRepository.save(exam);
 
