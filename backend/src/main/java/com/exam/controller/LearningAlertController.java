@@ -95,22 +95,6 @@ public class LearningAlertController {
     }
 
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getAlertDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(queryService.getAlertDetail(id));
-    }
-
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    @PostMapping("/{id}/resolve")
-    public ResponseEntity<Map<String, Object>> markResolved(@PathVariable Long id, Principal principal) {
-        queryService.markAsResolved(id, principal);
-        Map<String, Object> r = new HashMap<>();
-        r.put("success", true);
-        r.put("id", id);
-        return ResponseEntity.ok(r);
-    }
-
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @PostMapping("/resolve/batch")
     public ResponseEntity<Map<String, Object>> markBatchResolved(@RequestBody Map<String, List<Long>> body, Principal principal) {
         List<Long> ids = body.get("ids");
@@ -157,5 +141,21 @@ public class LearningAlertController {
                 .map(queryService::enrichAlert)
                 .collect(Collectors.toList()));
         return ResponseEntity.ok(result);
+    }
+
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @GetMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> getAlertDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(queryService.getAlertDetail(id));
+    }
+
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PostMapping("/{id}/resolve")
+    public ResponseEntity<Map<String, Object>> markResolved(@PathVariable Long id, Principal principal) {
+        queryService.markAsResolved(id, principal);
+        Map<String, Object> r = new HashMap<>();
+        r.put("success", true);
+        r.put("id", id);
+        return ResponseEntity.ok(r);
     }
 }

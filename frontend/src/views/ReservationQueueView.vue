@@ -125,10 +125,16 @@ const connectWebSocket = () => {
       onDisconnect: () => {
         connected.value = false;
         console.log('WebSocket disconnected');
+        startPolling();
       },
       onStompError: (error) => {
         console.error('WebSocket error:', error);
         connected.value = false;
+        startPolling();
+      },
+      onWebSocketClose: () => {
+        connected.value = false;
+        startPolling();
       }
     });
 

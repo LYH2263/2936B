@@ -28,21 +28,6 @@ public class ExamVersionController {
         return examVersionService.getVersions(examId);
     }
 
-    @GetMapping("/{versionNumber}")
-    public ExamVersion getVersion(@PathVariable Long examId,
-                                   @PathVariable Integer versionNumber) {
-        return examVersionService.getVersion(examId, versionNumber);
-    }
-
-    @PostMapping
-    public ResponseEntity<ExamVersion> createVersion(@PathVariable Long examId,
-                                                      @RequestBody(required = false) Map<String, String> body,
-                                                      Principal principal) {
-        String description = (body != null && body.containsKey("description")) ? body.get("description") : null;
-        ExamVersion version = examVersionService.createVersion(examId, principal.getName(), description);
-        return ResponseEntity.ok(version);
-    }
-
     @GetMapping("/diff")
     public ExamDiffResultDTO diffVersions(@PathVariable Long examId,
                                            @RequestParam Integer left,
@@ -56,5 +41,20 @@ public class ExamVersionController {
                                                     Principal principal) {
         Exam exam = examVersionService.rollbackToVersion(examId, versionNumber, principal.getName());
         return ResponseEntity.ok(exam);
+    }
+
+    @GetMapping("/{versionNumber}")
+    public ExamVersion getVersion(@PathVariable Long examId,
+                                   @PathVariable Integer versionNumber) {
+        return examVersionService.getVersion(examId, versionNumber);
+    }
+
+    @PostMapping
+    public ResponseEntity<ExamVersion> createVersion(@PathVariable Long examId,
+                                                      @RequestBody(required = false) Map<String, String> body,
+                                                      Principal principal) {
+        String description = (body != null && body.containsKey("description")) ? body.get("description") : null;
+        ExamVersion version = examVersionService.createVersion(examId, principal.getName(), description);
+        return ResponseEntity.ok(version);
     }
 }

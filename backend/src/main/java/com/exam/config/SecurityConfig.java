@@ -80,6 +80,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/config").permitAll()
                         .requestMatchers("/ws/**", "/ws-stomp/**").permitAll()
                         .requestMatchers("/api/auth/profile").authenticated()

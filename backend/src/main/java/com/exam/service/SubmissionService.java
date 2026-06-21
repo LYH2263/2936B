@@ -151,8 +151,12 @@ public class SubmissionService {
             Long examId = s.getExam().getId();
             List<Submission> allSubmissionsForExam = submissionRepository.findByExamId(examId);
             
-            // Sort by score descending to find rank
-            allSubmissionsForExam.sort((a, b) -> b.getScore().compareTo(a.getScore()));
+            // Sort by score descending to find rank (null scores treated as 0)
+            allSubmissionsForExam.sort((a, b) -> {
+                int scoreA = a.getScore() != null ? a.getScore() : 0;
+                int scoreB = b.getScore() != null ? b.getScore() : 0;
+                return Integer.compare(scoreB, scoreA);
+            });
             
             int rank = 1;
             for (Submission item : allSubmissionsForExam) {
@@ -177,7 +181,11 @@ public class SubmissionService {
         
         // Calculate ranking
         List<Submission> allSubmissionsForExam = submissionRepository.findByExamId(submission.getExam().getId());
-        allSubmissionsForExam.sort((a, b) -> b.getScore().compareTo(a.getScore()));
+        allSubmissionsForExam.sort((a, b) -> {
+            int scoreA = a.getScore() != null ? a.getScore() : 0;
+            int scoreB = b.getScore() != null ? b.getScore() : 0;
+            return Integer.compare(scoreB, scoreA);
+        });
         int rank = 1;
         for (Submission item : allSubmissionsForExam) {
             if (item.getId().equals(submission.getId())) break;
@@ -219,24 +227,28 @@ public class SubmissionService {
         long totalExams = userSubmissions.size();
         stats.setTotalExams(totalExams);
         
-        if (totalExams > 0) {
+        List<Submission> gradedSubmissions = userSubmissions.stream()
+                .filter(s -> "SUBMITTED".equals(s.getState()) && s.getScore() != null)
+                .collect(Collectors.toList());
+
+        if (!gradedSubmissions.isEmpty()) {
             double totalScorePct = 0;
             int passCount = 0;
-            
-            for (Submission s : userSubmissions) {
-                // Ensure examTotalScore is present
+
+            for (Submission s : gradedSubmissions) {
                 Integer totalScore = examQuestionRepository.sumScoreByExamId(s.getExam().getId());
                 int total = totalScore != null ? totalScore : 0;
-                
+
                 if (total > 0) {
                     double pct = (double) s.getScore() / total;
                     totalScorePct += pct;
                     if (pct >= 0.6) passCount++;
                 }
             }
-            
-            stats.setAvgScore(Math.round((totalScorePct / totalExams) * 1000.0) / 10.0); // e.g., 85.5
-            stats.setPassRate(Math.round(((double) passCount / totalExams) * 1000.0) / 10.0);
+
+            long gradedCount = gradedSubmissions.size();
+            stats.setAvgScore(Math.round((totalScorePct / gradedCount) * 1000.0) / 10.0);
+            stats.setPassRate(Math.round(((double) passCount / gradedCount) * 1000.0) / 10.0);
         } else {
             stats.setAvgScore(0);
             stats.setPassRate(0);
@@ -265,9 +277,14 @@ public class SubmissionService {
                 .count();
         stats.setPendingExamsCount(pending);
         
-        // Recent submissions
+        // Recent submissions (in-progress records may have null endTime)
         List<Submission> recent = userSubmissions.stream()
-                .sorted((a, b) -> b.getEndTime().compareTo(a.getEndTime()))
+                .sorted((a, b) -> {
+                    if (a.getEndTime() == null && b.getEndTime() == null) return 0;
+                    if (a.getEndTime() == null) return 1;
+                    if (b.getEndTime() == null) return -1;
+                    return b.getEndTime().compareTo(a.getEndTime());
+                })
                 .limit(5)
                 .collect(Collectors.toList());
         stats.setRecentSubmissions(recent);

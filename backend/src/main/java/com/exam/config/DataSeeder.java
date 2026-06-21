@@ -2,6 +2,9 @@ package com.exam.config;
 
 import com.exam.entity.*;
 import com.exam.repository.*;
+import com.exam.service.ExamVersionService;
+import com.exam.service.LearningAlertService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,16 +12,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Configuration
 public class DataSeeder {
 
     @Bean
     @Transactional
-    public CommandLineRunner initData(UserRepository userRepository, 
-                                      ExamRepository examRepository, 
+    public CommandLineRunner initData(UserRepository userRepository,
+                                      ExamRepository examRepository,
                                       QuestionRepository questionRepository,
                                       ExamQuestionRepository examQuestionRepository,
                                       SubmissionRepository submissionRepository,
@@ -27,6 +29,19 @@ public class DataSeeder {
                                       ExamTemplateQuestionRepository examTemplateQuestionRepository,
                                       ClazzRepository clazzRepository,
                                       ClazzStudentRepository clazzStudentRepository,
+                                      WrongQuestionBookRepository wrongQuestionBookRepository,
+                                      ExamQnaThreadRepository examQnaThreadRepository,
+                                      ExamQnaMessageRepository examQnaMessageRepository,
+                                      ExamTimeSlotRepository examTimeSlotRepository,
+                                      ExamReservationRepository examReservationRepository,
+                                      ExamVersionRepository examVersionRepository,
+                                      AnswerSnapshotRepository answerSnapshotRepository,
+                                      PkSessionRepository pkSessionRepository,
+                                      PkAnswerRepository pkAnswerRepository,
+                                      LearningAlertRepository learningAlertRepository,
+                                      ExamVersionService examVersionService,
+                                      LearningAlertService learningAlertService,
+                                      ObjectMapper objectMapper,
                                       PasswordEncoder passwordEncoder) {
         return args -> {
             // 1. Create Users if not exist
@@ -47,6 +62,9 @@ public class DataSeeder {
                 // Ensure default numeric students exist if seeder runs again
                 if (userRepository.findByUsername("2024001").isEmpty()) {
                     createUser(userRepository, passwordEncoder, "2024001", "STUDENT", "李同学");
+                }
+                if (userRepository.findByUsername("2024002").isEmpty()) {
+                    createUser(userRepository, passwordEncoder, "2024002", "STUDENT", "陈同学");
                 }
                 
                 // Backup logic: ensure all users have createdAt
@@ -93,6 +111,35 @@ public class DataSeeder {
             seedClassManagementData(userRepository, examRepository, questionRepository,
                     examQuestionRepository, clazzRepository, clazzStudentRepository,
                     passwordEncoder, teacher1, teacher2);
+
+            // 6. Seed Wrong Question Book Test Data
+            seedWrongQuestionBookData(userRepository, examRepository, questionRepository,
+                    examQuestionRepository, submissionRepository, submissionAnswerRepository,
+                    wrongQuestionBookRepository);
+
+            // 7. Seed Exam Q&A Test Data
+            seedExamQnaData(userRepository, examRepository, examQnaThreadRepository,
+                    examQnaMessageRepository, teacher1);
+
+            // 8. Seed Reservation Queue Test Data
+            seedReservationData(userRepository, examRepository, questionRepository,
+                    examQuestionRepository, examTimeSlotRepository, examReservationRepository,
+                    passwordEncoder, teacher1);
+
+            // 9. Seed Exam Version & Answer Replay Test Data
+            seedExamVersionAndReplayData(examRepository, questionRepository, examQuestionRepository,
+                    submissionRepository, examVersionRepository, answerSnapshotRepository,
+                    examVersionService, objectMapper, teacher1);
+
+            // 10. Seed PK Battle History Test Data
+            seedPkBattleData(userRepository, questionRepository, pkSessionRepository,
+                    pkAnswerRepository, objectMapper);
+
+            // 11. Generate Learning Alerts from seeded submissions
+            if (learningAlertRepository.countUnresolved() == 0) {
+                learningAlertService.runFullScan();
+                System.out.println("Learning alerts generated from test submissions!");
+            }
         };
     }
 
@@ -643,5 +690,524 @@ public class DataSeeder {
         System.out.println("已创建班级：软件2201班（张老师班主任，5名学生）、软件2202班（王老师班主任，3名学生）");
         System.out.println("已创建考试：「软件2201班专属单元测试」，仅软件2201班可见");
         System.out.println("测试账号：2022001-2022005（软件2201班），2022006-2022008（软件2202班），密码均为 123456");
+    }
+
+    private Submission buildSubmittedExam(SubmissionRepository subRepo, User student, Exam exam,
+                                          List<ExamQuestion> examQuestions, double scoreRate) {
+        Submission s = new Submission();
+        s.setStudent(student);
+        s.setExam(exam);
+        s.setStartTime(LocalDateTime.now().minusHours(2));
+        s.setEndTime(LocalDateTime.now().minusHours(1));
+        s.setState("SUBMITTED");
+        int total = examQuestions.stream().mapToInt(ExamQuestion::getScore).sum();
+        s.setScore((int) Math.floor(total * scoreRate));
+        return subRepo.save(s);
+    }
+
+    private void seedWrongQuestionBookData(UserRepository userRepo, ExamRepository examRepo,
+                                           QuestionRepository qRepo, ExamQuestionRepository eqRepo,
+                                           SubmissionRepository subRepo, SubmissionAnswerRepository saRepo,
+                                           WrongQuestionBookRepository wqbRepo) {
+        if (wqbRepo.count() > 0) {
+            return;
+        }
+
+        System.out.println("Seeding Wrong Question Book Test Data...");
+
+        User student = userRepo.findByUsername("2024001").orElse(null);
+        User weakStudent = userRepo.findByUsername("2024999").orElse(null);
+        if (student == null && weakStudent == null) {
+            return;
+        }
+
+        Exam mathExam = examRepo.findAll().stream()
+                .filter(e -> "高等数学期中考试".equals(e.getTitle()))
+                .findFirst().orElse(null);
+
+        if (mathExam != null && student != null) {
+            List<ExamQuestion> examQuestions = eqRepo.findByExamIdOrderBySequenceAsc(mathExam.getId());
+            List<Submission> existingSubs = subRepo.findByExamIdAndStudentIdAndState(
+                    mathExam.getId(), student.getId(), "SUBMITTED");
+            Submission sub = existingSubs.isEmpty()
+                    ? buildSubmittedExam(subRepo, student, mathExam, examQuestions, 0.6)
+                    : existingSubs.get(0);
+
+            for (int i = 0; i < examQuestions.size(); i++) {
+                ExamQuestion eq = examQuestions.get(i);
+                Question q = eq.getQuestion();
+                boolean wrong = i % 2 == 0;
+                String studentAnswer = wrong ? "B" : q.getAnswer();
+                int scoreGot = wrong ? 0 : eq.getScore();
+
+                SubmissionAnswer sa = new SubmissionAnswer();
+                sa.setSubmission(sub);
+                sa.setQuestion(q);
+                sa.setStudentAnswer(studentAnswer);
+                sa.setScore(scoreGot);
+                saRepo.save(sa);
+
+                if (wrong) {
+                    WrongQuestionBook wqb = new WrongQuestionBook();
+                    wqb.setStudent(student);
+                    wqb.setQuestion(q);
+                    wqb.setSubmission(sub);
+                    wqb.setStudentAnswer(studentAnswer);
+                    wqb.setScoreGot(0);
+                    wqb.setFullScore(eq.getScore());
+                    wqb.setWrongReason("概念理解错误");
+                    wqb.setMastered(i == 0);
+                    wqb.setWrongCount(i == 0 ? 2 : 1);
+                    wqb.setAddedAt(LocalDateTime.now().minusDays(3 - i));
+                    wqb.setLastWrongAt(LocalDateTime.now().minusDays(1));
+                    wqbRepo.save(wqb);
+                }
+            }
+        }
+
+        if (weakStudent != null) {
+            List<Submission> weakSubs = subRepo.findSubmittedByStudentOrderByEndTimeDesc(weakStudent.getId());
+            Submission weakSub = weakSubs.isEmpty() ? null : weakSubs.get(0);
+
+            if (weakSub != null) {
+                List<ExamQuestion> alertQuestions = eqRepo.findByExamIdOrderBySequenceAsc(weakSub.getExam().getId());
+                for (ExamQuestion eq : alertQuestions) {
+                    Question q = eq.getQuestion();
+                    if (q.getKnowledgePoint() == null || !q.getKnowledgePoint().contains("一元二次")) {
+                        continue;
+                    }
+                    WrongQuestionBook wqb = new WrongQuestionBook();
+                    wqb.setStudent(weakStudent);
+                    wqb.setQuestion(q);
+                    wqb.setSubmission(weakSub);
+                    wqb.setStudentAnswer("WRONG_" + q.getId());
+                    wqb.setScoreGot(0);
+                    wqb.setFullScore(eq.getScore());
+                    wqb.setWrongReason("一元二次方程掌握不足");
+                    wqb.setMastered(false);
+                    wqb.setWrongCount(2);
+                    wqb.setAddedAt(LocalDateTime.now().minusDays(20));
+                    wqb.setLastWrongAt(LocalDateTime.now().minusDays(5));
+                    wqbRepo.save(wqb);
+                }
+            }
+        }
+
+        System.out.println("Wrong Question Book Test Data Seeded! 登录 2024001/123456 或 2024999/123456 查看错题本。");
+    }
+
+    private void seedExamQnaData(UserRepository userRepo, ExamRepository examRepo,
+                                 ExamQnaThreadRepository threadRepo, ExamQnaMessageRepository msgRepo,
+                                 User teacher) {
+        if (threadRepo.count() > 0 || teacher == null) {
+            return;
+        }
+
+        System.out.println("Seeding Exam Q&A Test Data...");
+
+        Exam mathExam = examRepo.findAll().stream()
+                .filter(e -> "高等数学期中考试".equals(e.getTitle()))
+                .findFirst().orElse(null);
+        if (mathExam == null) {
+            return;
+        }
+
+        User student1 = userRepo.findByUsername("2024001").orElse(null);
+        User student2 = userRepo.findByUsername("2024002").orElse(null);
+        if (student1 == null) {
+            return;
+        }
+
+        ExamQnaThread faqThread = new ExamQnaThread();
+        faqThread.setExam(mathExam);
+        faqThread.setStudent(student1);
+        faqThread.setTitle("【FAQ】考试注意事项与允许携带物品");
+        faqThread.setQuestionContent("本考试是否允许使用计算器？考试时长如何计算？");
+        faqThread.setIsFaq(true);
+        faqThread.setIsPinned(true);
+        faqThread.setIsAnswered(true);
+        faqThread.setAnsweredAt(LocalDateTime.now().minusDays(2));
+        faqThread.setAnsweredBy(teacher);
+        faqThread.setCreatedAt(LocalDateTime.now().minusDays(3));
+        faqThread.setUpdatedAt(LocalDateTime.now().minusDays(2));
+        faqThread = threadRepo.save(faqThread);
+
+        ExamQnaMessage faqReply = new ExamQnaMessage();
+        faqReply.setThread(faqThread);
+        faqReply.setSender(teacher);
+        faqReply.setSenderRole("TEACHER");
+        faqReply.setContent("本次考试<strong>不允许</strong>使用计算器。考试时长为90分钟，从点击「开始考试」时计时，超时系统自动提交。");
+        faqReply.setCreatedAt(LocalDateTime.now().minusDays(2));
+        msgRepo.save(faqReply);
+
+        ExamQnaThread answeredThread = new ExamQnaThread();
+        answeredThread.setExam(mathExam);
+        answeredThread.setStudent(student1);
+        answeredThread.setTitle("矩阵乘法那道题有点不理解");
+        answeredThread.setQuestionContent("老师您好，矩阵乘法不满足交换律，那什么情况下 AB = BA 呢？");
+        answeredThread.setIsAnswered(true);
+        answeredThread.setAnsweredAt(LocalDateTime.now().minusHours(5));
+        answeredThread.setAnsweredBy(teacher);
+        answeredThread.setCreatedAt(LocalDateTime.now().minusDays(1));
+        answeredThread.setUpdatedAt(LocalDateTime.now().minusHours(5));
+        answeredThread = threadRepo.save(answeredThread);
+
+        ExamQnaMessage studentQ1 = new ExamQnaMessage();
+        studentQ1.setThread(answeredThread);
+        studentQ1.setSender(student1);
+        studentQ1.setSenderRole("STUDENT");
+        studentQ1.setContent("老师您好，矩阵乘法不满足交换律，那什么情况下 AB = BA 呢？");
+        studentQ1.setCreatedAt(LocalDateTime.now().minusDays(1));
+        msgRepo.save(studentQ1);
+
+        ExamQnaMessage teacherA1 = new ExamQnaMessage();
+        teacherA1.setThread(answeredThread);
+        teacherA1.setSender(teacher);
+        teacherA1.setSenderRole("TEACHER");
+        teacherA1.setContent("当 A、B 同时为对角矩阵，或其中一个为单位矩阵时，一般有 AB = BA。更严格地说，当 AB - BA = 0 时称两矩阵可交换。");
+        teacherA1.setCreatedAt(LocalDateTime.now().minusHours(5));
+        msgRepo.save(teacherA1);
+
+        if (student2 != null) {
+            ExamQnaThread pendingThread = new ExamQnaThread();
+            pendingThread.setExam(mathExam);
+            pendingThread.setStudent(student2);
+            pendingThread.setTitle("导数计算题能否写详细步骤？");
+            pendingThread.setQuestionContent("求导题目需要写出完整推导过程吗，还是只写最终答案即可？");
+            pendingThread.setIsAnswered(false);
+            pendingThread.setCreatedAt(LocalDateTime.now().minusHours(3));
+            pendingThread.setUpdatedAt(LocalDateTime.now().minusHours(3));
+            pendingThread = threadRepo.save(pendingThread);
+
+            ExamQnaMessage studentQ2 = new ExamQnaMessage();
+            studentQ2.setThread(pendingThread);
+            studentQ2.setSender(student2);
+            studentQ2.setSenderRole("STUDENT");
+            studentQ2.setContent("求导题目需要写出完整推导过程吗，还是只写最终答案即可？");
+            studentQ2.setCreatedAt(LocalDateTime.now().minusHours(3));
+            msgRepo.save(studentQ2);
+        }
+
+        System.out.println("Exam Q&A Test Data Seeded! 登录教师 1001/123456 进入问答中心，或学生 2024001/2024002 查看。");
+    }
+
+    private void seedReservationData(UserRepository userRepo, ExamRepository examRepo,
+                                     QuestionRepository qRepo, ExamQuestionRepository eqRepo,
+                                     ExamTimeSlotRepository slotRepo, ExamReservationRepository resRepo,
+                                     PasswordEncoder encoder, User teacher) {
+        String reservationExamTitle = "英语四级模拟（预约制）";
+        Exam existingReservationExam = examRepo.findAll().stream()
+                .filter(e -> reservationExamTitle.equals(e.getTitle()))
+                .findFirst().orElse(null);
+        if (existingReservationExam != null && resRepo.countByExamId(existingReservationExam.getId()) > 0) {
+            return;
+        }
+        if (teacher == null) {
+            return;
+        }
+
+        System.out.println("Seeding Reservation Queue Test Data...");
+
+        Exam exam = existingReservationExam;
+        if (exam == null) {
+            exam = new Exam();
+            exam.setTitle(reservationExamTitle);
+            exam.setDescription("高并发预约考试测试：需提前预约时段，限时入场。");
+            exam.setCourse("英语");
+            exam.setDuration(120);
+            exam.setState("PUBLISHED");
+            exam.setCreator(teacher);
+            exam.setStartTime(LocalDateTime.now().plusDays(1));
+            exam.setEndTime(LocalDateTime.now().plusDays(14));
+            exam.setCoverUrl("/covers/english.png");
+            exam.setReservationEnabled(true);
+            exam.setMaxConcurrentUsers(5);
+            exam.setTimeSlotDuration(60);
+            exam.setReservationStartTime(LocalDateTime.now().minusDays(1));
+            exam.setReservationEndTime(LocalDateTime.now().plusDays(10));
+            exam.setAdmissionTimeout(15);
+            exam = examRepo.save(exam);
+
+            List<Question> questions = new ArrayList<>();
+            questions.add(createQuestion(qRepo, teacher, "SINGLE", "Choose the correct word: He ___ to school every day.",
+                    "[{\"label\":\"A\",\"text\":\"go\"},{\"label\":\"B\",\"text\":\"goes\"},{\"label\":\"C\",\"text\":\"going\"},{\"label\":\"D\",\"text\":\"gone\"}]",
+                    "B", "第三人称单数", 5, "语法"));
+            questions.add(createQuestion(qRepo, teacher, "SINGLE", "What is the synonym of 'abundant'?",
+                    "[{\"label\":\"A\",\"text\":\"scarce\"},{\"label\":\"B\",\"text\":\"plentiful\"},{\"label\":\"C\",\"text\":\"tiny\"},{\"label\":\"D\",\"text\":\"empty\"}]",
+                    "B", null, 5, "词汇"));
+            linkQuestionsToExam(eqRepo, exam, questions);
+        }
+
+        LocalDateTime base = LocalDateTime.now().plusHours(2).withMinute(0).withSecond(0).withNano(0);
+        List<ExamTimeSlot> existingSlots = slotRepo.findByExamIdOrderByStartTimeAsc(exam.getId());
+        ExamTimeSlot slot1;
+        ExamTimeSlot slot2;
+        if (existingSlots.size() >= 2) {
+            slot1 = existingSlots.get(0);
+            slot2 = existingSlots.get(1);
+        } else {
+            slot1 = createTimeSlot(slotRepo, exam, base, base.plusHours(2), 3);
+            slot2 = createTimeSlot(slotRepo, exam, base.plusHours(2), base.plusHours(4), 5);
+            createTimeSlot(slotRepo, exam, base.plusHours(4), base.plusHours(6), 10);
+        }
+
+        String[][] students = {
+                {"2024101", "预约生A", "CONFIRMED", "1"},
+                {"2024102", "预约生B", "CONFIRMED", "1"},
+                {"2024103", "预约生C", "ADMITTED", "1"},
+                {"2024104", "预约生D", "PENDING", null},
+                {"2024105", "预约生E", "PENDING", null},
+                {"2024106", "预约生F", "CONFIRMED", "2"},
+                {"2024107", "预约生G", "ADMITTED", "2"},
+        };
+
+        Map<Long, ExamTimeSlot> slotMap = Map.of(slot1.getId(), slot1, slot2.getId(), slot2);
+        Map<Long, int[]> slotCounts = new HashMap<>();
+        slotMap.keySet().forEach(id -> slotCounts.put(id, new int[2]));
+
+        int pendingPos = 1;
+        for (String[] row : students) {
+            User student = userRepo.findByUsername(row[0]).orElseGet(() -> {
+                User u = new User();
+                u.setUsername(row[0]);
+                u.setFullName(row[1]);
+                u.setPassword(encoder.encode("123456"));
+                u.setRole("STUDENT");
+                u.setClazz("预约测试班");
+                u.setCreatedAt(LocalDateTime.now().minusDays(10));
+                return userRepo.save(u);
+            });
+
+            if (resRepo.findByExamIdAndStudentId(exam.getId(), student.getId()).isPresent()) {
+                continue;
+            }
+
+            ExamReservation reservation = new ExamReservation();
+            reservation.setExam(exam);
+            reservation.setStudent(student);
+            reservation.setStatus(row[2]);
+            reservation.setCreatedAt(LocalDateTime.now().minusHours(12 - pendingPos));
+
+            if ("PENDING".equals(row[2])) {
+                reservation.setQueuePosition(pendingPos++);
+            } else {
+                ExamTimeSlot slot = "1".equals(row[3]) ? slot1 : slot2;
+                reservation.setTimeSlot(slot);
+                reservation.setConfirmedAt(LocalDateTime.now().minusMinutes(30));
+                reservation.setExpiredAt(LocalDateTime.now().plusMinutes(15));
+                int[] counts = slotCounts.get(slot.getId());
+                counts[0]++;
+                if ("ADMITTED".equals(row[2])) {
+                    reservation.setAdmittedAt(LocalDateTime.now().minusMinutes(10));
+                    counts[1]++;
+                }
+            }
+            resRepo.save(reservation);
+        }
+
+        for (Map.Entry<Long, int[]> entry : slotCounts.entrySet()) {
+            ExamTimeSlot slot = slotRepo.findById(entry.getKey()).orElseThrow();
+            slot.setReservedCount(entry.getValue()[0]);
+            slot.setActiveCount(entry.getValue()[1]);
+            slotRepo.save(slot);
+        }
+
+        System.out.println("Reservation Queue Test Data Seeded! 登录 2024101-2024107/123456 体验预约排队。");
+    }
+
+    private ExamTimeSlot createTimeSlot(ExamTimeSlotRepository repo, Exam exam,
+                                        LocalDateTime start, LocalDateTime end, int capacity) {
+        ExamTimeSlot slot = new ExamTimeSlot();
+        slot.setExam(exam);
+        slot.setStartTime(start);
+        slot.setEndTime(end);
+        slot.setCapacity(capacity);
+        slot.setReservedCount(0);
+        slot.setActiveCount(0);
+        return repo.save(slot);
+    }
+
+    private void seedExamVersionAndReplayData(ExamRepository examRepo, QuestionRepository qRepo,
+                                              ExamQuestionRepository eqRepo, SubmissionRepository subRepo,
+                                              ExamVersionRepository versionRepo, AnswerSnapshotRepository snapshotRepo,
+                                              ExamVersionService versionService, ObjectMapper objectMapper,
+                                              User teacher) {
+        Exam mathExam = examRepo.findAll().stream()
+                .filter(e -> "高等数学期中考试".equals(e.getTitle()))
+                .findFirst().orElse(null);
+        if (mathExam == null || teacher == null) {
+            return;
+        }
+
+        if (versionRepo.countByExamId(mathExam.getId()) == 0) {
+            System.out.println("Seeding Exam Version Test Data...");
+            versionService.createVersion(mathExam.getId(), teacher.getUsername(), "初始发布版本");
+
+            Question extraQ = createQuestion(qRepo, teacher, "SINGLE", "lim(x→0) sin(x)/x 的值是？",
+                    "[{\"label\":\"A\",\"text\":\"0\"},{\"label\":\"B\",\"text\":\"1\"},{\"label\":\"C\",\"text\":\"∞\"},{\"label\":\"D\",\"text\":\"不存在\"}]",
+                    "B", "重要极限", 10, "极限");
+            ExamQuestion eq = new ExamQuestion();
+            eq.setExam(mathExam);
+            eq.setQuestion(extraQ);
+            eq.setScore(10);
+            eq.setSequence(eqRepo.findByExamIdOrderBySequenceAsc(mathExam.getId()).size() + 1);
+            eqRepo.save(eq);
+
+            versionService.createVersion(mathExam.getId(), teacher.getUsername(), "新增极限计算题");
+            System.out.println("Exam Version Test Data Seeded! 在「高等数学期中考试」版本管理中查看。");
+        }
+
+        Submission replaySub = subRepo.findAll().stream()
+                .filter(s -> "2024999".equals(s.getStudent().getUsername()))
+                .filter(s -> s.getExam().getTitle().contains("预警测试"))
+                .findFirst().orElse(null);
+
+        if (replaySub != null && snapshotRepo.countBySubmissionId(replaySub.getId()) == 0) {
+            System.out.println("Seeding Answer Replay Snapshot Data...");
+            List<ExamQuestion> examQuestions = eqRepo.findByExamIdOrderBySequenceAsc(replaySub.getExam().getId());
+            if (examQuestions.isEmpty()) {
+                return;
+            }
+
+            try {
+                Map<Long, String> answers = new LinkedHashMap<>();
+                for (int i = 0; i < Math.min(3, examQuestions.size()); i++) {
+                    Question q = examQuestions.get(i).getQuestion();
+                    answers.put(q.getId(), i == 0 ? q.getAnswer() : "WRONG");
+                }
+                String fullJson = objectMapper.writeValueAsString(answers);
+
+                AnswerSnapshot snap1 = new AnswerSnapshot();
+                snap1.setSubmission(replaySub);
+                snap1.setTimestamp(replaySub.getStartTime().plusMinutes(5));
+                snap1.setElapsedSeconds(300);
+                snap1.setCurrentQuestionIndex(0);
+                snap1.setTimeLeft(5100);
+                snap1.setAnswersDelta(fullJson);
+                snap1.setIsFullSnapshot(true);
+                snapshotRepo.save(snap1);
+
+                answers.put(examQuestions.get(1).getQuestion().getId(), examQuestions.get(1).getQuestion().getAnswer());
+                String deltaJson = objectMapper.writeValueAsString(
+                        Map.of(examQuestions.get(1).getQuestion().getId(), examQuestions.get(1).getQuestion().getAnswer()));
+
+                AnswerSnapshot snap2 = new AnswerSnapshot();
+                snap2.setSubmission(replaySub);
+                snap2.setTimestamp(replaySub.getStartTime().plusMinutes(15));
+                snap2.setElapsedSeconds(900);
+                snap2.setCurrentQuestionIndex(2);
+                snap2.setTimeLeft(4500);
+                snap2.setAnswersDelta(deltaJson);
+                snap2.setIsFullSnapshot(false);
+                snapshotRepo.save(snap2);
+
+                Map<Long, String> finalAnswers = new LinkedHashMap<>();
+                for (ExamQuestion eqItem : examQuestions) {
+                    finalAnswers.put(eqItem.getQuestion().getId(),
+                            eqItem.getQuestion().getKnowledgePoint() != null
+                                    && eqItem.getQuestion().getKnowledgePoint().contains("一元二次") ? "WRONG" : eqItem.getQuestion().getAnswer());
+                }
+
+                AnswerSnapshot snap3 = new AnswerSnapshot();
+                snap3.setSubmission(replaySub);
+                snap3.setTimestamp(replaySub.getStartTime().plusMinutes(55));
+                snap3.setElapsedSeconds(3300);
+                snap3.setCurrentQuestionIndex(examQuestions.size() - 1);
+                snap3.setTimeLeft(300);
+                snap3.setAnswersDelta(objectMapper.writeValueAsString(finalAnswers));
+                snap3.setIsFullSnapshot(true);
+                snapshotRepo.save(snap3);
+
+                System.out.println("Answer Replay Test Data Seeded! 教师登录后可在答卷回放中查看 submission #" + replaySub.getId());
+            } catch (Exception e) {
+                System.out.println("Failed to seed answer snapshots: " + e.getMessage());
+            }
+        }
+    }
+
+    private void seedPkBattleData(UserRepository userRepo, QuestionRepository qRepo,
+                                  PkSessionRepository sessionRepo, PkAnswerRepository answerRepo,
+                                  ObjectMapper objectMapper) {
+        if (sessionRepo.findWeeklyRankedSessions(
+                LocalDateTime.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                        .withHour(0).withMinute(0).withSecond(0).withNano(0)).size() >= 3) {
+            return;
+        }
+
+        System.out.println("Seeding PK Battle History Test Data...");
+
+        List<User> players = List.of("2024001", "2024002", "2022001", "2022002", "2022003").stream()
+                .map(u -> userRepo.findByUsername(u).orElse(null))
+                .filter(Objects::nonNull)
+                .toList();
+        if (players.size() < 2) {
+            return;
+        }
+
+        List<Question> pkQuestions = qRepo.findAll().stream()
+                .filter(q -> "SINGLE".equals(q.getType()) || "JUDGE".equals(q.getType()))
+                .limit(10)
+                .toList();
+        if (pkQuestions.size() < 5) {
+            return;
+        }
+
+        List<Long> questionIds = pkQuestions.stream().map(Question::getId).toList();
+        String questionIdsJson;
+        try {
+            questionIdsJson = objectMapper.writeValueAsString(questionIds);
+        } catch (Exception e) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        for (int i = 0; i < Math.min(6, players.size() - 1); i++) {
+            User p1 = players.get(i);
+            User p2 = players.get((i + 1) % players.size());
+            boolean p1Wins = i % 2 == 0;
+
+            PkSession session = new PkSession();
+            session.setPlayer1(p1);
+            session.setPlayer2(p2);
+            session.setState("FINISHED");
+            session.setQuestionCount(Math.min(5, questionIds.size()));
+            session.setCurrentQuestionIndex(5);
+            session.setStartTime(now.minusDays(i + 1));
+            session.setEndTime(now.minusDays(i + 1).plusMinutes(8));
+            session.setPlayer1Score(p1Wins ? 40 : 20);
+            session.setPlayer2Score(p1Wins ? 20 : 40);
+            session.setWinner(p1Wins ? p1 : p2);
+            session.setIsBotGame(false);
+            session.setQuestionIds(questionIdsJson);
+            session.setCreatedAt(now.minusDays(i + 1));
+            session = sessionRepo.save(session);
+
+            for (int q = 0; q < 5; q++) {
+                Question question = pkQuestions.get(q);
+                PkAnswer a1 = new PkAnswer();
+                a1.setSession(session);
+                a1.setPlayer(p1);
+                a1.setQuestionId(question.getId());
+                a1.setQuestionIndex(q);
+                a1.setAnswer(question.getAnswer());
+                a1.setIsCorrect(q % 2 == 0 || p1Wins);
+                a1.setTimeUsed(8 + q);
+                a1.setAnsweredAt(session.getStartTime().plusSeconds(q * 30L + 8));
+                answerRepo.save(a1);
+
+                PkAnswer a2 = new PkAnswer();
+                a2.setSession(session);
+                a2.setPlayer(p2);
+                a2.setQuestionId(question.getId());
+                a2.setQuestionIndex(q);
+                a2.setAnswer(p1Wins && q % 2 == 1 ? "X" : question.getAnswer());
+                a2.setIsCorrect(!p1Wins || q % 2 == 0);
+                a2.setTimeUsed(12 + q);
+                a2.setAnsweredAt(session.getStartTime().plusSeconds(q * 30L + 12));
+                answerRepo.save(a2);
+            }
+        }
+
+        System.out.println("PK Battle Test Data Seeded! 登录任意学生账号进入 PK 排行榜查看。");
     }
 }

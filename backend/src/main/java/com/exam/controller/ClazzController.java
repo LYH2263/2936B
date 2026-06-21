@@ -49,6 +49,23 @@ public class ClazzController {
         return clazzService.getAllClazzes();
     }
 
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('STUDENT')")
+    public List<Clazz> getMyClazzes(Authentication authentication) {
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null) {
+            return List.of();
+        }
+        return clazzService.getClazzesByStudentId(user.getId());
+    }
+
+    @GetMapping("/student/{studentId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER') or hasRole('STUDENT')")
+    public List<Clazz> getStudentClazzes(@PathVariable Long studentId) {
+        return clazzService.getClazzesByStudentId(studentId);
+    }
+
     @GetMapping("/{id}")
     public Clazz getClazzById(@PathVariable Long id) {
         return clazzService.getClazzById(id);
@@ -113,22 +130,5 @@ public class ClazzController {
             @RequestParam("file") MultipartFile file) {
         Map<String, Object> result = clazzService.batchImportStudents(id, file);
         return ResponseEntity.ok(result);
-    }
-
-    @GetMapping("/student/{studentId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER') or hasRole('STUDENT')")
-    public List<Clazz> getStudentClazzes(@PathVariable Long studentId) {
-        return clazzService.getClazzesByStudentId(studentId);
-    }
-
-    @GetMapping("/my")
-    @PreAuthorize("hasRole('STUDENT')")
-    public List<Clazz> getMyClazzes(Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElse(null);
-        if (user == null) {
-            return List.of();
-        }
-        return clazzService.getClazzesByStudentId(user.getId());
     }
 }

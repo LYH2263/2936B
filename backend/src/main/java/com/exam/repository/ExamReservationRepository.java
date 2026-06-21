@@ -39,4 +39,6 @@ public interface ExamReservationRepository extends JpaRepository<ExamReservation
     List<ExamReservation> findActiveReservationsByExamId(@Param("examId") Long examId);
 
     List<ExamReservation> findByStudentId(Long studentId);
+
+    long countByExamId(Long examId);
 }

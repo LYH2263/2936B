@@ -38,16 +38,6 @@ public class SubmissionController {
         return submissionService.getExamSubmissions(examId);
     }
 
-    @GetMapping("/{id}")
-    public Submission getSubmission(@PathVariable Long id) {
-        return submissionService.getSubmissionById(id);
-    }
-
-    @PostMapping("/{id}/grade")
-    public void gradeSubmission(@PathVariable Long id, @RequestBody Map<Long, SubmissionGradeDTO> grades) {
-        submissionService.gradeSubmission(id, grades);
-    }
-
     @GetMapping("/stats")
     public com.exam.dto.StudentStatsDTO getMyStats(Principal principal) {
         return submissionService.getStudentStats(principal.getName());
@@ -56,5 +46,15 @@ public class SubmissionController {
     @GetMapping("/teacher-stats")
     public com.exam.dto.TeacherStatsDTO getTeacherStats() {
         return submissionService.getTeacherStats();
+    }
+
+    @GetMapping("/{id}")
+    public Submission getSubmission(@PathVariable Long id) {
+        return submissionService.getSubmissionById(id);
+    }
+
+    @PostMapping("/{id}/grade")
+    public void gradeSubmission(@PathVariable Long id, @RequestBody Map<Long, SubmissionGradeDTO> grades) {
+        submissionService.gradeSubmission(id, grades);
     }
 }

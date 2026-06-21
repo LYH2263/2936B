@@ -35,6 +35,18 @@ public class ExamTemplateController {
         return templateService.searchTemplates(principal.getName(), course, keyword);
     }
 
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public List<ExamTemplate> getMyTemplates(Principal principal) {
+        return templateService.getMyTemplates(principal.getName());
+    }
+
+    @GetMapping("/pending")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<ExamTemplate> getPendingTemplates() {
+        return templateService.getPendingTemplates();
+    }
+
     @GetMapping("/{id}")
     public ExamTemplate getTemplate(@PathVariable Long id) {
         return templateService.getTemplateById(id);
@@ -43,12 +55,6 @@ public class ExamTemplateController {
     @GetMapping("/{id}/questions")
     public List<ExamTemplateQuestion> getTemplateQuestions(@PathVariable Long id) {
         return templateService.getTemplateQuestions(id);
-    }
-
-    @GetMapping("/my")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public List<ExamTemplate> getMyTemplates(Principal principal) {
-        return templateService.getMyTemplates(principal.getName());
     }
 
     @PostMapping("/{examId}/save")
@@ -80,12 +86,6 @@ public class ExamTemplateController {
     public ResponseEntity<?> deleteTemplate(@PathVariable Long id, Principal principal) {
         templateService.deleteTemplate(id, principal.getName());
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/pending")
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<ExamTemplate> getPendingTemplates() {
-        return templateService.getPendingTemplates();
     }
 
     @PostMapping("/{id}/review")

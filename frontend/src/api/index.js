@@ -2,7 +2,7 @@ import axios from 'axios';
 import { message } from 'ant-design-vue';
 
 const api = axios.create({
-    baseURL: '/api',
+    baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
     timeout: 5000,
     withCredentials: true,
     xsrfCookieName: 'XSRF-TOKEN',
@@ -32,9 +32,13 @@ api.interceptors.response.use(
         if (error.response) {
             const { status, data } = error.response;
             if (status === 401) {
-                message.error('登录已过期，请重新登录');
-                localStorage.removeItem('token');
-                window.location.href = '/login';
+                const hadToken = !!localStorage.getItem('token');
+                if (hadToken) {
+                    message.error('登录已过期，请重新登录');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                }
             } else if (status === 403) {
                 message.error('权限不足，拒绝访问');
             } else if (status === 404) {

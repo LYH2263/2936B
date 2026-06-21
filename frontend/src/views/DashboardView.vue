@@ -517,7 +517,7 @@ const userInitial = computed(() => {
                   </template>
                   <a-timeline>
                     <a-timeline-item v-for="sub in stats.recentSubmissions.slice(0, 3)" :key="sub.id" :color="sub.score >= (sub.examTotalScore || 100) * 0.6 ? 'green' : 'red'">
-                      <p>{{ sub.exam.title }} - <b>{{ sub.score }}分</b></p>
+                      <p>{{ sub.exam?.title || '未知考试' }} - <b>{{ sub.score ?? '-' }}分</b></p>
                       <p style="color: #999; font-size: 12px;">{{ sub.endTime }}</p>
                     </a-timeline-item>
                   </a-timeline>

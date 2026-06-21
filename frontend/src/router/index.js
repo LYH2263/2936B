@@ -111,15 +111,15 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
-            path: '/pk/:id',
-            name: 'pk-battle',
-            component: PkBattleView,
-            meta: { requiresAuth: true }
-        },
-        {
             path: '/pk/ranking',
             name: 'pk-ranking',
             component: PkRankingView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/pk/:id',
+            name: 'pk-battle',
+            component: PkBattleView,
             meta: { requiresAuth: true }
         },
         {

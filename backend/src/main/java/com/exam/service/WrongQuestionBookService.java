@@ -156,15 +156,15 @@ public class WrongQuestionBookService {
     }
 
     @Transactional(readOnly = true)
-    public List<Question> getPracticeQuestions(String username, int count) {
+    public List<WrongQuestionBookDTO> getPracticeQuestions(String username, int count) {
         User student = userRepository.findByUsername(username).orElseThrow();
         
         Pageable pageable = PageRequest.of(0, count * 3);
         List<WrongQuestionBook> wrongQuestions = wrongQuestionBookRepository.findRandomWrongQuestions(
                 student.getId(), pageable);
         
-        List<Question> questions = wrongQuestions.stream()
-                .map(WrongQuestionBook::getQuestion)
+        List<WrongQuestionBookDTO> questions = wrongQuestions.stream()
+                .map(wqb -> toPracticeQuestionDTO(wqb.getQuestion()))
                 .collect(Collectors.toList());
         
         Collections.shuffle(questions);
@@ -233,6 +233,22 @@ public class WrongQuestionBookService {
                 }
             }
         }
+    }
+
+    private WrongQuestionBookDTO toPracticeQuestionDTO(Question q) {
+        WrongQuestionBookDTO dto = new WrongQuestionBookDTO();
+        dto.setId(q.getId());
+        dto.setQuestionId(q.getId());
+        dto.setContent(q.getContent());
+        dto.setType(q.getType());
+        dto.setOptions(q.getOptions());
+        dto.setAnswer(q.getAnswer());
+        dto.setAnalysis(q.getAnalysis());
+        dto.setSubject(q.getSubject());
+        dto.setKnowledgePoint(q.getKnowledgePoint());
+        dto.setDifficulty(q.getDifficulty());
+        dto.setDefaultScore(q.getDefaultScore());
+        return dto;
     }
 
     private WrongQuestionBookDTO convertToDTO(WrongQuestionBook wqb) {

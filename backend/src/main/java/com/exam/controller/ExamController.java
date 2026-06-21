@@ -35,9 +35,16 @@ public class ExamController {
         return examService.getAllExams();
     }
 
-    @GetMapping("/{id}")
-    public Exam getExam(@PathVariable Long id) {
-        return examService.getExamById(id);
+    @GetMapping("/questions")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public List<Question> getAllQuestions() {
+        return examService.getAllQuestions();
+    }
+
+    @PostMapping("/questions")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public Question createQuestion(@RequestBody Question question, Principal principal) {
+        return examService.createQuestion(question, principal.getName());
     }
 
     @PostMapping
@@ -46,10 +53,9 @@ public class ExamController {
         return examService.createExam(exam, principal.getName());
     }
 
-    @PostMapping("/questions")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public Question createQuestion(@RequestBody Question question, Principal principal) {
-        return examService.createQuestion(question, principal.getName());
+    @GetMapping("/{id}")
+    public Exam getExam(@PathVariable Long id) {
+        return examService.getExamById(id);
     }
 
     @PostMapping("/{examId}/questions")
@@ -82,12 +88,6 @@ public class ExamController {
     public ResponseEntity<?> removeQuestionFromExam(@PathVariable Long examId, @PathVariable Long questionId) {
         examService.removeQuestionFromExam(examId, questionId);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/questions")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public List<Question> getAllQuestions() {
-        return examService.getAllQuestions();
     }
 
     @PostMapping("/{examId}/publish")

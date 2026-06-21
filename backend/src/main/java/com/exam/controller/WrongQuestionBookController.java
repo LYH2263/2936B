@@ -1,13 +1,13 @@
 package com.exam.controller;
 
 import com.exam.dto.WrongQuestionBookDTO;
-import com.exam.entity.Question;
 import com.exam.repository.UserRepository;
 import com.exam.service.WrongQuestionBookService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -53,7 +53,7 @@ public class WrongQuestionBookController {
     }
 
     @GetMapping("/practice")
-    public List<Question> getPracticeQuestions(
+    public List<WrongQuestionBookDTO> getPracticeQuestions(
             Principal principal,
             @RequestParam(defaultValue = "10") int count) {
         return wrongQuestionBookService.getPracticeQuestions(principal.getName(), count);
@@ -63,11 +63,34 @@ public class WrongQuestionBookController {
     public void submitPracticeResult(
             Principal principal,
             @RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        Map<Long, String> answers = (Map<Long, String>) body.get("answers");
-        @SuppressWarnings("unchecked")
-        Map<Long, Boolean> correctMap = (Map<Long, Boolean>) body.get("correctMap");
-        wrongQuestionBookService.submitPracticeResult(principal.getName(), answers, correctMap);
+        wrongQuestionBookService.submitPracticeResult(
+                principal.getName(),
+                parseStringMap(body.get("answers")),
+                parseBooleanMap(body.get("correctMap")));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<Long, String> parseStringMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> source)) {
+            return Map.of();
+        }
+        Map<Long, String> result = new HashMap<>();
+        for (Map.Entry<?, ?> entry : source.entrySet()) {
+            result.put(Long.valueOf(entry.getKey().toString()), entry.getValue() != null ? entry.getValue().toString() : null);
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<Long, Boolean> parseBooleanMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> source)) {
+            return Map.of();
+        }
+        Map<Long, Boolean> result = new HashMap<>();
+        for (Map.Entry<?, ?> entry : source.entrySet()) {
+            result.put(Long.valueOf(entry.getKey().toString()), Boolean.TRUE.equals(entry.getValue()));
+        }
+        return result;
     }
 
     @DeleteMapping("/{questionId}")

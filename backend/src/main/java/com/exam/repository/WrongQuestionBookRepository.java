@@ -36,7 +36,7 @@ public interface WrongQuestionBookRepository extends JpaRepository<WrongQuestion
             @Param("mastered") Boolean mastered,
             Pageable pageable);
 
-    @Query("SELECT w FROM WrongQuestionBook w WHERE w.student.id = :studentId AND w.mastered = false " +
+    @Query("SELECT w FROM WrongQuestionBook w JOIN FETCH w.question q WHERE w.student.id = :studentId AND w.mastered = false " +
            "ORDER BY w.wrongCount DESC, w.lastWrongAt DESC")
     List<WrongQuestionBook> findRandomWrongQuestions(@Param("studentId") Long studentId, Pageable pageable);
 
